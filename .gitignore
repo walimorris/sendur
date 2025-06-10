@@ -1,0 +1,9 @@
+application.properties
+node_modules/
+node
+.idea/
+.vscode/
+target/
+
+.DS_Store
+*.log
