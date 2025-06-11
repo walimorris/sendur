@@ -17,7 +17,9 @@ n8n allows you to manipulate any data output you receive. In this case our Agent
 leads. This Code node allows us to conduct any other parsing, validation or structure manipulation on this output data. 
 Honestly, we just want to ensure the AI Agent is giving us some useful data, in the right structure we can use in our 
 Springboot application. Which leads us to the last `HttpRequest` node. This output is sent to our 
-`/sendur/api/leads/receive-scheduled-leads` API running on our Springboot application. 
+`/sendur/api/leads/receive-scheduled-leads` API running on our Springboot application. You might be asking how we remove 
+data duplication, I mean we don't want the same leads showing up all the time. In a later step, we'll talk about how we 
+can give our AI Agent `Memory`, or in other words the ability to know what data we already have and what we don't want.
 
 <a href="https://n8n.io/integrations/agent/">
   <img src="images/scheduled_lead_generator_agent.png" alt="Logo" width="800" height="350">
