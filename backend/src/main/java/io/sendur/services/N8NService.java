@@ -46,8 +46,8 @@ public class N8NService {
     }
 
     private HttpResponse<String> hitN8NApprovedEmailWebhook(List<Lead> leads) {
-        return postN8NWebhook(n8NConfigurationProperties.getN8nApprovedEmailsWebhook(),
-                n8NConfigurationProperties.getN8nTimeout(), leads);
+        return postN8NWebhook(n8NConfigurationProperties.getApprovedEmailsWebhook(),
+                n8NConfigurationProperties.getTimeout(), leads);
     }
 
     private HttpResponse<String> postN8NWebhook(String webhook, long timeout, Object object) {

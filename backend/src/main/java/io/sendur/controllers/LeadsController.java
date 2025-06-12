@@ -1,5 +1,6 @@
 package io.sendur.controllers;
 
+import io.micrometer.common.util.StringUtils;
 import io.sendur.models.Lead;
 import io.sendur.models.LeadRequest;
 import io.sendur.services.LeadService;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.net.http.HttpResponse;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -126,12 +128,32 @@ public class LeadsController {
     @PostMapping("/approve-lead-emails")
     public ResponseEntity<?> approveLeadEmails(@RequestBody List<Lead> leads) {
         LOGGER.info("Sending approved leads to N8N 'Send Approve Emails Webhook'");
-        HttpResponse<String> sentApprovedLeadsResponse = n8NService.sendApprovedEmailsToLeads(leads);
+        List<Lead> validatedLeads = reviewAndValidateLeadRecords(leads);
+        HttpResponse<String> sentApprovedLeadsResponse = n8NService.sendApprovedEmailsToLeads(validatedLeads);
         if (sentApprovedLeadsResponse != null) {
             if (sentApprovedLeadsResponse.statusCode() == 200) {
                 return ResponseEntity.ok().build();
             }
         }
         return ResponseEntity.badRequest().build();
+    }
+
+    /**
+     * A validation helper to ensure lead records have filled data properties. We don't want to
+     * send leads that do not have email addresses. This helps mitigate errors on the n8n webhook.
+     *
+     * @param leads {@linkplain Lead leads}
+     *
+     * @return validated {@linkplain List of leads}
+     */
+    private List<Lead> reviewAndValidateLeadRecords(List<Lead> leads) {
+        List<Lead> validatedLeads = new ArrayList<>();
+        for (Lead lead : leads) {
+            if (lead != null && StringUtils.isNotEmpty(lead.getEmail())) {
+                validatedLeads.add(lead);
+            }
+        }
+        LOGGER.info("validated leads {} of {} original leads.", validatedLeads.size(), leads.size());
+        return validatedLeads;
     }
 }

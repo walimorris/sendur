@@ -19,6 +19,7 @@ import Tooltip from '@mui/material/Tooltip';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch';
 import DeleteIcon from '@mui/icons-material/Delete';
+import SendIcon from '@mui/icons-material/Send';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import { visuallyHidden } from '@mui/utils';
 import axios from "axios";
@@ -141,8 +142,19 @@ EnhancedTableHead.propTypes = {
     rowCount: PropTypes.number.isRequired,
 };
 
-function EnhancedTableToolbar(props) {
-    const { numSelected } = props;
+function EnhancedTableToolbar({numSelected, selected}) {
+    async function handleSendLeads() {
+        try {
+            const response = await axios.post("/sendur/api/leads/approve-lead-emails", selected, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            console.log("Successfully sent leads: ", response.data);
+        } catch (err) {
+            console.log("Failed to send selected leads", err);
+        }
+    }
     return (
         <Toolbar
             sx={[
@@ -176,9 +188,14 @@ function EnhancedTableToolbar(props) {
                 </Typography>
             )}
             {numSelected > 0 ? (
-                <Tooltip title="Delete">
-                    <IconButton>
-                        <DeleteIcon />
+                // <Tooltip title="Delete">
+                //     <IconButton>
+                //         <DeleteIcon />
+                //     </IconButton>
+                // </Tooltip>
+                <Tooltip title="Send">
+                    <IconButton onClick={handleSendLeads}>
+                        <SendIcon />
                     </IconButton>
                 </Tooltip>
             ) : (
@@ -194,6 +211,7 @@ function EnhancedTableToolbar(props) {
 
 EnhancedTableToolbar.propTypes = {
     numSelected: PropTypes.number.isRequired,
+    selected: PropTypes.array.isRequired
 };
 
 export default function LeadTable() {
@@ -246,21 +264,17 @@ export default function LeadTable() {
         setSelected([]);
     };
 
-    const handleClick = (event, id) => {
-        const selectedIndex = selected.indexOf(id);
+    const handleClick = (event, lead) => {
+        const selectedIndex = selected.findIndex(item => item._id === lead._id);
         let newSelected = [];
 
         if (selectedIndex === -1) {
-            newSelected = newSelected.concat(selected, id);
-        } else if (selectedIndex === 0) {
-            newSelected = newSelected.concat(selected.slice(1));
-        } else if (selectedIndex === selected.length - 1) {
-            newSelected = newSelected.concat(selected.slice(0, -1));
-        } else if (selectedIndex > 0) {
-            newSelected = newSelected.concat(
-                selected.slice(0, selectedIndex),
-                selected.slice(selectedIndex + 1),
-            );
+            newSelected = [...selected, lead]; // add the lead
+        } else {
+            newSelected = [
+                ...selected.slice(0, selectedIndex),
+                ...selected.slice(selectedIndex + 1)
+            ]; // remove the lead
         }
         setSelected(newSelected);
     };
@@ -293,7 +307,7 @@ export default function LeadTable() {
     return (
         <Box sx={{width: '100%'}}>
             <Paper sx={{width: '100%', mb: 2}}>
-                <EnhancedTableToolbar numSelected={selected.length}/>
+                <EnhancedTableToolbar numSelected={selected.length} selected={selected}/>
                 <TableContainer>
                     <Table
                         sx={{minWidth: 750}}
@@ -310,13 +324,13 @@ export default function LeadTable() {
                         />
                         <TableBody>
                             {visibleRows.map((lead, index) => {
-                                const isItemSelected = selected.includes(lead._id);
+                                const isItemSelected = selected.some((item) => item._id === lead._id);
                                 const labelId = `enhanced-table-checkbox-${index}`;
 
                                 return (
                                     <TableRow
                                         hover
-                                        onClick={(event) => handleClick(event, lead._id)}
+                                        onClick={(event) => handleClick(event, lead)}
                                         role="checkbox"
                                         aria-checked={isItemSelected}
                                         tabIndex={-1}
@@ -376,6 +390,7 @@ export default function LeadTable() {
                 control={<Switch checked={dense} onChange={handleChangeDense}/>}
                 label="Dense padding"
             />
+            <pre>{JSON.stringify(selected, null, 2)}</pre>
         </Box>
     );
 }
