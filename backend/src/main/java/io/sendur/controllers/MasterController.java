@@ -22,13 +22,10 @@ public class MasterController {
      * @return forwarding route to index.html
      */
     @RequestMapping(value = {
-            "/"
+            "/",
+            "/{path:^(?!api|oauth2|login|logout|built|favicon\\.ico$).*$}"
     })
-    public String forward(HttpServletRequest request) {
-        String uri = request.getRequestURI();
-        if (uri.startsWith("/login/oauth2/code/")) {
-            return null;
-        }
+    public String forward() {
         return "forward:/built/index.html";
     }
 }
