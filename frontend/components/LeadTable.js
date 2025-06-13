@@ -185,7 +185,7 @@ function EnhancedTableToolbar({numSelected, selected}) {
                     id="tableTitle"
                     component="div"
                 >
-                    Sendur Lead Contact Automation
+                    Select
                 </Typography>
             )}
             {numSelected > 0 ? (
@@ -306,8 +306,12 @@ export default function LeadTable() {
     );
 
     return (
-        <Box sx={{width: '100%'}}>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: 2 }}>
+        <Box sx={{ width: '90%', mx: 'auto'}}>
+            <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 2}}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <img src="/images/sendur_worm_tiny.png" alt="Sendur Logo" style={{ height: 40, marginRight: 12 }}/>
+                    <Typography variant="h6">Sendur Lead Contact Automation</Typography>
+                </Box>
                 <Button
                     variant="outlined"
                     color="error"
