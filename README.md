@@ -75,7 +75,7 @@ generated emails with a click of a button.
 ### Human-in-the-Loop Review
 You log into the Sendur web application to review and approve both the leads and their associated emails.
 
-<a href="https://n8n.io/integrations/agent/">
+<a href="https://mui.com/material-ui/">
   <img src="images/sendur_landing_page.png" alt="Logo" width="800" height="350">
 </a>
 
