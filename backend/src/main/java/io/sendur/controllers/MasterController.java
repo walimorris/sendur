@@ -1,5 +1,6 @@
 package io.sendur.controllers;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
@@ -23,7 +24,11 @@ public class MasterController {
     @RequestMapping(value = {
             "/"
     })
-    public String forward() {
+    public String forward(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        if (uri.startsWith("/login/oauth2/code/")) {
+            return null;
+        }
         return "forward:/built/index.html";
     }
 }

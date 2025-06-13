@@ -1,6 +1,24 @@
-# Sendur
+<!-- PROJECT LOGO -->
+<br />
+<div align="center">
+  <a href="https://bitbucket.org/intelligence-opensent/opensentop/src/master/">
+    <img src="/images/sendur_worm.png" alt="Logo" width="400" height="300">
+  </a>
 
-Sendur is an AI-augmented lead generation automation platform that leverages n8n workflows and an AI agent to streamline the process of identifying, reviewing, and engaging potential business leads.
+<h3 align="center">Sender</h3>
+
+  <p align="center">
+    Automate business lead generation and outreach with Java and GenAI
+    <br />
+    <a href="#">View Demo</a>
+    ·
+    <a href="#">Report Bug</a>
+    ·
+    <a href="#">Request Feature</a>
+  </p>
+</div>
+
+Sendur is an AI-augmented lead generation automation platform that leverages n8n workflows and AI agents to streamline the process of identifying, reviewing, and engaging potential business leads.
 
 ## How It Works
 

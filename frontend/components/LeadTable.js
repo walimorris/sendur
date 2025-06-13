@@ -24,6 +24,7 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import { visuallyHidden } from '@mui/utils';
 import axios from "axios";
 import {useEffect} from "react";
+import {Button} from "@mui/material";
 
 function descendingComparator(a, b, orderBy) {
     if (b[orderBy] < a[orderBy]) {
@@ -306,6 +307,15 @@ export default function LeadTable() {
 
     return (
         <Box sx={{width: '100%'}}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: 2 }}>
+                <Button
+                    variant="outlined"
+                    color="error"
+                    onClick={() => window.location.href = '/logout'}
+                >
+                    Logout
+                </Button>
+            </Box>
             <Paper sx={{width: '100%', mb: 2}}>
                 <EnhancedTableToolbar numSelected={selected.length} selected={selected}/>
                 <TableContainer>
