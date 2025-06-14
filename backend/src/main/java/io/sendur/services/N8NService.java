@@ -1,12 +1,13 @@
 package io.sendur.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.sendur.configurations.N8NConfigurationProperties;
 import io.sendur.models.Lead;
 import io.sendur.repositories.LeadRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -45,17 +46,18 @@ public class N8NService {
         }
     }
 
-    private HttpResponse<String> hitN8NApprovedEmailWebhook(List<Lead> leads) {
+    private HttpResponse<String> hitN8NApprovedEmailWebhook(List<Lead> leads) throws JsonProcessingException {
         return postN8NWebhook(n8NConfigurationProperties.getApprovedEmailsWebhook(),
                 n8NConfigurationProperties.getTimeout(), leads);
     }
 
-    private HttpResponse<String> postN8NWebhook(String webhook, long timeout, Object object) {
+    private HttpResponse<String> postN8NWebhook(String webhook, long timeout, Object object) throws JsonProcessingException {
         HttpClient client = HttpClient.newHttpClient();
+        String json = new ObjectMapper().writeValueAsString(object);
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(webhook))
-                .header("Content-Type", String.valueOf(MediaType.APPLICATION_JSON))
-                .POST(HttpRequest.BodyPublishers.ofString(object.toString()))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(json))
                 .timeout(Duration.ofSeconds(timeout))
                 .build();
         try {

@@ -132,9 +132,14 @@ public class LeadsController {
         HttpResponse<String> sentApprovedLeadsResponse = n8NService.sendApprovedEmailsToLeads(validatedLeads);
         if (sentApprovedLeadsResponse != null) {
             if (sentApprovedLeadsResponse.statusCode() == 200) {
+                LOGGER.info("success. status code: {}", sentApprovedLeadsResponse.statusCode());
                 return ResponseEntity.ok().build();
+            } else {
+                LOGGER.info("not exactly success. status code: {}", sentApprovedLeadsResponse.statusCode());
+                return ResponseEntity.status(sentApprovedLeadsResponse.statusCode()).build();
             }
         }
+        LOGGER.info("something went wrong.");
         return ResponseEntity.badRequest().build();
     }
 
