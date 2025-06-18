@@ -73,17 +73,19 @@ public class N8NService {
             if (n8nSocketAccepting()) {
                 return client.execute(post);
             }
-        } catch (IOException e) {
+        } catch (IOException | IllegalStateException e) {
             LOGGER.error("Failed to send POST request to N8N webhook {}: {}", webhook, e.getMessage());
         }
         return null;
     }
 
-    private boolean n8nSocketAccepting() {
+    private boolean n8nSocketAccepting() throws IllegalStateException {
         try (Socket socket = new Socket("127.0.0.1", 5678)) {
             if (socket.isConnected()) {
                 LOGGER.info("n8n on PORT 5678 is open and accepting");
                 return true;
+            } else {
+                throw new IllegalStateException("n8n on PORT 5678 is closed and not accepting");
             }
         } catch (IOException e) {
             LOGGER.error("Can't connect to 127.0.0.1:5678: {}", e.getMessage());
