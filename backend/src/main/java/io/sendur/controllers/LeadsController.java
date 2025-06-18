@@ -5,6 +5,7 @@ import io.sendur.models.Lead;
 import io.sendur.models.LeadRequest;
 import io.sendur.services.LeadService;
 import io.sendur.services.N8NService;
+import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -129,14 +130,14 @@ public class LeadsController {
     public ResponseEntity<?> approveLeadEmails(@RequestBody List<Lead> leads) {
         LOGGER.info("Sending approved leads to N8N 'Send Approve Emails Webhook'");
         List<Lead> validatedLeads = reviewAndValidateLeadRecords(leads);
-        HttpResponse<String> sentApprovedLeadsResponse = n8NService.sendApprovedEmailsToLeads(validatedLeads);
+        ClassicHttpResponse sentApprovedLeadsResponse = n8NService.sendApprovedEmailsToLeads(validatedLeads);
         if (sentApprovedLeadsResponse != null) {
-            if (sentApprovedLeadsResponse.statusCode() == 200) {
-                LOGGER.info("success. status code: {}", sentApprovedLeadsResponse.statusCode());
+            if (sentApprovedLeadsResponse.getCode() == 200) {
+                LOGGER.info("success. status code: {}", sentApprovedLeadsResponse.getCode());
                 return ResponseEntity.ok().build();
             } else {
-                LOGGER.info("not exactly success. status code: {}", sentApprovedLeadsResponse.statusCode());
-                return ResponseEntity.status(sentApprovedLeadsResponse.statusCode()).build();
+                LOGGER.info("not exactly success. status code: {}", sentApprovedLeadsResponse.getCode());
+                return ResponseEntity.status(sentApprovedLeadsResponse.getCode()).build();
             }
         }
         LOGGER.info("something went wrong.");

@@ -5,23 +5,30 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.sendur.configurations.N8NConfigurationProperties;
 import io.sendur.models.Lead;
 import io.sendur.repositories.LeadRepository;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.http.ClassicHttpResponse;
+import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
+import java.net.Socket;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class N8NService {
     private static final Logger LOGGER = LoggerFactory.getLogger(N8NService.class);
 
+    private static final String CONTENT_TYPE = "Content-Type";
+    private static final String USER_AGENT = "User-Agent";
+    private static final String APPLICATION_JSON = "application/json";
+    private static final String APP_NAME = "Sendur";
 
     private final LeadRepository leadRepository;
     private final N8NConfigurationProperties n8NConfigurationProperties;
@@ -32,10 +39,9 @@ public class N8NService {
         this.n8NConfigurationProperties = n8NConfigurationProperties;
     }
 
-    public HttpResponse<String> sendApprovedEmailsToLeads(List<Lead> leads) {
-        try {
-            HttpResponse<String> response = hitN8NApprovedEmailWebhook(leads);
-            if (response.statusCode() == 200) {
+    public ClassicHttpResponse sendApprovedEmailsToLeads(List<Lead> leads) {
+        try (ClassicHttpResponse response = hitN8NApprovedEmailWebhook(leads)) {
+            if (response.getCode() == 200) {
                 leadRepository.saveAll(leads);
                 return response;
             }
@@ -46,25 +52,42 @@ public class N8NService {
         }
     }
 
-    private HttpResponse<String> hitN8NApprovedEmailWebhook(List<Lead> leads) throws JsonProcessingException {
+    private ClassicHttpResponse hitN8NApprovedEmailWebhook(List<Lead> leads) throws JsonProcessingException {
         return postN8NWebhook(n8NConfigurationProperties.getApprovedEmailsWebhook(),
                 n8NConfigurationProperties.getTimeout(), leads);
     }
 
-    private HttpResponse<String> postN8NWebhook(String webhook, long timeout, Object object) throws JsonProcessingException {
-        HttpClient client = HttpClient.newHttpClient();
+    private ClassicHttpResponse postN8NWebhook(String webhook, long timeout, Object object) throws JsonProcessingException {
         String json = new ObjectMapper().writeValueAsString(object);
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(webhook))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(json))
-                .timeout(Duration.ofSeconds(timeout))
+        RequestConfig config = RequestConfig.custom()
+                .setResponseTimeout(timeout, TimeUnit.SECONDS)
                 .build();
-        try {
-            return client.send(request, HttpResponse.BodyHandlers.ofString());
-        } catch (IOException | InterruptedException e) {
+        try (CloseableHttpClient client = HttpClients.custom()
+                .setDefaultRequestConfig(config)
+                .build()) {
+            HttpPost post = new HttpPost(webhook);
+            post.setHeader(CONTENT_TYPE, APPLICATION_JSON);
+            post.setHeader(USER_AGENT, APP_NAME);
+            post.setEntity(new StringEntity(json));
+
+            if (n8nSocketAccepting()) {
+                return client.execute(post);
+            }
+        } catch (IOException e) {
             LOGGER.error("Failed to send POST request to N8N webhook {}: {}", webhook, e.getMessage());
-            return null;
         }
+        return null;
+    }
+
+    private boolean n8nSocketAccepting() {
+        try (Socket socket = new Socket("127.0.0.1", 5678)) {
+            if (socket.isConnected()) {
+                LOGGER.info("n8n on PORT 5678 is open and accepting");
+                return true;
+            }
+        } catch (IOException e) {
+            LOGGER.error("Can't connect to 127.0.0.1:5678: {}", e.getMessage());
+        }
+        return false;
     }
 }
