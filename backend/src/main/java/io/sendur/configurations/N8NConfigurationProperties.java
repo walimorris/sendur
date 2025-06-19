@@ -10,4 +10,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class N8NConfigurationProperties {
     private String approvedEmailsWebhook;
     private long timeout;
+    private String host;
+    private int port;
 }

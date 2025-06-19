@@ -80,15 +80,17 @@ public class N8NService {
     }
 
     private boolean n8nSocketAccepting() throws IllegalStateException {
-        try (Socket socket = new Socket("127.0.0.1", 5678)) {
+        final String host = n8NConfigurationProperties.getHost();
+        final int port = n8NConfigurationProperties.getPort();
+        try (Socket socket = new Socket(host, port)) {
             if (socket.isConnected()) {
-                LOGGER.info("n8n on PORT 5678 is open and accepting");
+                LOGGER.info("n8n on PORT {} is open and accepting", port);
                 return true;
             } else {
-                throw new IllegalStateException("n8n on PORT 5678 is closed and not accepting");
+                throw new IllegalStateException("n8n on PORT" + port + " is closed and not accepting");
             }
         } catch (IOException e) {
-            LOGGER.error("Can't connect to 127.0.0.1:5678: {}", e.getMessage());
+            LOGGER.error("Can't connect to {}:{}: {}", host, port, e.getMessage());
         }
         return false;
     }
