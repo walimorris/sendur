@@ -3,6 +3,7 @@ package io.sendur.services;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.sendur.configurations.N8NConfigurationProperties;
+import io.sendur.models.ApprovedLeadsWebhookResult;
 import io.sendur.models.Lead;
 import io.sendur.repositories.LeadRepository;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
@@ -10,6 +11,7 @@ import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.ClassicHttpResponse;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,16 +41,17 @@ public class N8NService {
         this.n8NConfigurationProperties = n8NConfigurationProperties;
     }
 
-    public ClassicHttpResponse sendApprovedEmailsToLeads(List<Lead> leads) {
+    public ApprovedLeadsWebhookResult sendApprovedEmailsToLeads(List<Lead> leads) {
         try (ClassicHttpResponse response = hitN8NApprovedEmailWebhook(leads)) {
-            if (response.getCode() == 200) {
+            int statusCode = response.getCode();
+            String content = EntityUtils.toString(response.getEntity());
+            if (statusCode == 200) {
                 leadRepository.saveAll(leads);
-                return response;
             }
-            return response;
+            return new ApprovedLeadsWebhookResult(statusCode, content);
         } catch (Exception e) {
-            LOGGER.error("Failed to save and send approved leads to AI Agent: {}", e.getMessage());
-            return null;
+            LOGGER.error("Failed to send and save approved leads: {}", e.getMessage(), e);
+            return new ApprovedLeadsWebhookResult(500, "Failed to contact N8N webhook");
         }
     }
 

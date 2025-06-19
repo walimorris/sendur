@@ -69,7 +69,7 @@ back to our springboot api endpoint `/sendur/api/leads/update-emails` to update 
 generated emails with a click of a button. 
 
 <a href="https://n8n.io/integrations/agent/">
-  <img src="images/scheduled_lead_update_agent.png" alt="Logo" width="800" height="450">
+  <img src="images/scheduled_lead_update_agent.png" alt="Logo" width="800" height="350">
 </a>
 
 ### Human-in-the-Loop Review
@@ -81,6 +81,10 @@ You log into the Sendur web application to review and approve both the leads and
 
 ### Email Dispatch & Webhook Integration
 Approved emails are sent via an n8n webhook trigger, initiating the outbound communication process.
+
+<a href="https://n8n.io/integrations/agent/">
+  <img src="images/send_approved_emails.png" alt="Logo" width="800" height="350">
+</a>
 
 ### Lead Persistence & Workflow Expansion
 All lead data is stored and updated in the system. As the project grows, additional automations and workflows (e.g., follow-ups, CRM sync, analytics) can be layered on top.

@@ -9,6 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "n8n")
 public class N8NConfigurationProperties {
     private String approvedEmailsWebhook;
+    private String sendGridApiKey;
     private long timeout;
     private String host;
     private int port;
