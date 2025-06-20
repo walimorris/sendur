@@ -1,10 +1,12 @@
 package io.sendur.services;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.sendur.configurations.N8NConfigurationProperties;
 import io.sendur.models.ApprovedLeadsWebhookResult;
 import io.sendur.models.Lead;
+import io.sendur.models.WebhookMessageId;
 import io.sendur.repositories.LeadRepository;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.config.RequestConfig;
@@ -45,13 +47,15 @@ public class N8NService {
         try (ClassicHttpResponse response = hitN8NApprovedEmailWebhook(leads)) {
             int statusCode = response.getCode();
             String content = EntityUtils.toString(response.getEntity());
+            ObjectMapper mapper = new ObjectMapper();
+            List<WebhookMessageId> webhookMessageIdList = mapper.readValue(content, new TypeReference<>() {});
             if (statusCode == 200) {
                 leadRepository.saveAll(leads);
             }
-            return new ApprovedLeadsWebhookResult(statusCode, content);
+            return new ApprovedLeadsWebhookResult(statusCode, webhookMessageIdList);
         } catch (Exception e) {
             LOGGER.error("Failed to send and save approved leads: {}", e.getMessage(), e);
-            return new ApprovedLeadsWebhookResult(500, "Failed to contact N8N webhook");
+            return new ApprovedLeadsWebhookResult(500, null);
         }
     }
 

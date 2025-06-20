@@ -1,9 +1,7 @@
 package io.sendur.controllers;
 
 import io.micrometer.common.util.StringUtils;
-import io.sendur.models.ApprovedLeadsWebhookResult;
-import io.sendur.models.Lead;
-import io.sendur.models.LeadRequest;
+import io.sendur.models.*;
 import io.sendur.services.LeadService;
 import io.sendur.services.N8NService;
 import org.slf4j.Logger;
@@ -133,14 +131,14 @@ public class LeadsController {
         ApprovedLeadsWebhookResult sentApprovedLeadsResponse = n8NService.sendApprovedEmailsToLeads(validatedLeads);
         if (sentApprovedLeadsResponse != null) {
             final int statusCode = sentApprovedLeadsResponse.statusCode();
-            final String content = sentApprovedLeadsResponse.content();
+            final List<WebhookMessageId> webhookMessageIdList = sentApprovedLeadsResponse.webhookMessageIds();
             LOGGER.info("success. status code: {}", sentApprovedLeadsResponse.statusCode());
             if (statusCode == 200) {
-                LOGGER.info("Webhook call successful. Content: {}", content);
-                return ResponseEntity.ok().body(content);
+                LOGGER.info("Webhook call successful. Content: {}", webhookMessageIdList);
+                return ResponseEntity.ok().body(webhookMessageIdList);
             } else {
                 LOGGER.warn("Webhook call not exactly success. status code: {}", statusCode);
-                return ResponseEntity.status(statusCode).body(content);
+                return ResponseEntity.status(statusCode).body(webhookMessageIdList);
             }
         }
         LOGGER.info("something went wrong.");
