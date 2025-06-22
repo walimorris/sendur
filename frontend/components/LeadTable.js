@@ -18,7 +18,6 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch';
-import DeleteIcon from '@mui/icons-material/Delete';
 import SendIcon from '@mui/icons-material/Send';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import { visuallyHidden } from '@mui/utils';
@@ -305,6 +304,15 @@ export default function LeadTable() {
         [leads, order, orderBy, page, rowsPerPage],
     );
 
+    const isValidUrl = (value) => {
+        try {
+            new URL(value);
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+
     return (
         <Box sx={{ width: '90%', mx: 'auto'}}>
             <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 2}}>
@@ -344,7 +352,6 @@ export default function LeadTable() {
                                 return (
                                     <TableRow
                                         hover
-                                        onClick={(event) => handleClick(event, lead)}
                                         role="checkbox"
                                         aria-checked={isItemSelected}
                                         tabIndex={-1}
@@ -354,6 +361,7 @@ export default function LeadTable() {
                                     >
                                         <TableCell padding="checkbox">
                                             <Checkbox
+                                                onClick={(event) => handleClick(event, lead)}
                                                 color="primary"
                                                 checked={isItemSelected}
                                                 inputProps={{
@@ -372,7 +380,20 @@ export default function LeadTable() {
                                         <TableCell align="right">{lead.phone}</TableCell>
                                         <TableCell align="right">{lead.email}</TableCell>
                                         <TableCell align="right">{lead.city}</TableCell>
-                                        <TableCell align="right">{lead.website}</TableCell>
+                                        <TableCell align="right">
+                                            {lead.website && isValidUrl(lead.website) ? (
+                                                <a
+                                                    href={lead.website}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    Visit Site
+                                                </a>
+                                            ) : (
+                                                '—'
+                                            )}
+                                        </TableCell>
                                         <TableCell align="right">{lead.emailDraft}</TableCell>
                                         <TableCell align="right">{lead.haveContacted === true ? 'Yes' : 'No'}</TableCell>
                                     </TableRow>
