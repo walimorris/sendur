@@ -46,6 +46,21 @@ public class LeadsController {
     }
 
     /**
+     * Loads all available leads that have no email contact.
+     *
+     * @return {@linkplain ResponseEntity leads} with no emails
+     */
+    @GetMapping("/find-all-no-emails")
+    public ResponseEntity<List<Lead>> receiveAllLeadsWithNoEmails() {
+        List<Lead> leads = leadService.loadLeadsWithNoEmail();
+        LOGGER.info("All Leads without Emails: {}", leads);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .lastModified(Instant.now().toEpochMilli())
+                .body(leads);
+    }
+
+    /**
      * Scheduled workflow every morning that runs and finds available business leads
      * based on the requirements of the N8N workflow:
      * <ol>

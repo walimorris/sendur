@@ -3,6 +3,7 @@ package io.sendur.configurations;
 import io.sendur.models.CognitoLogoutHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -25,10 +26,12 @@ public class SecurityConfiguration {
                                 "/login/**",
                                 "/oauth2/**",
                                 "/favicon.ico" ).permitAll()
+                        .requestMatchers("/sendur/api/**").authenticated()
                         .anyRequest()
                         .authenticated())
                 .oauth2Login(oauth -> oauth.defaultSuccessUrl("/", true))
-                .logout(logout -> logout.logoutSuccessHandler(cognitoLogoutHandler));
+                .logout(logout -> logout.logoutSuccessHandler(cognitoLogoutHandler))
+                .oauth2ResourceServer(resource -> resource.jwt(Customizer.withDefaults()));
         return http.build();
     }
 
@@ -38,7 +41,7 @@ public class SecurityConfiguration {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/sendur/api/**")
-                        .allowedOrigins("http://localhost:8082")
+                        .allowedOrigins("http://127.0.0.1:8082")
                         .allowedMethods("GET", "POST", "PUT", "DELETE")
                         .allowCredentials(true);
             }

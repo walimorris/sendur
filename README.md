@@ -30,17 +30,23 @@ setup, we ask our Agent to look up the business details of small businesses arou
 We want our agent to send these leads back in a nicely built JSON structure (we can use this for persistence). The Agent
 uses <a href="https://openai.com/">OpenAI</a> and SerpAPI as a tool. Tools are nice-to-haves that are available for your AI Agent to use, however your
 Agent must have access to utilize these tools (API keys or other information you can let your Agent know about). If
-you haven't, check out what <a href="https://serpapi.com/">SerpAPI</a> is. You see the node called `Code`, well 
+you haven't, check out what <a href="https://serpapi.com/">SerpAPI</a> is. You see the node called `Structure the Leads`, well 
 n8n allows you to manipulate any data output you receive. In this case our Agent returns some JSON, hopefully a list of 
 leads. This Code node allows us to conduct any other parsing, validation or structure manipulation on this output data. 
 Honestly, we just want to ensure the AI Agent is giving us some useful data, in the right structure we can use in our 
-Springboot application. Which leads us to the last `HttpRequest` node. This output is sent to our 
-`/sendur/api/leads/receive-scheduled-leads` API running on our Springboot application. You might be asking how we remove 
-data duplication, I mean we don't want the same leads showing up all the time. In a later step, we'll talk about how we 
-can give our AI Agent `Memory`, or in other words the ability to know what data we already have and what we don't want.
+Springboot application. Which leads us to the last `Receive Scheduled Leads` node. This output is sent via a `POST` request to
+Sendur (`/sendur/api/leads/receive-scheduled-leads`). You might be asking how we remove data duplication, I mean we don't 
+want the same leads showing up all the time. You could use a `Memory` node on the AI Agent, however this is generally used
+for chat history context, and unfortunately we're not building a chatbot. So, we filter. Going back,
+you see the first `Get All leads` node? Here's where we send a `GET` request to Sendur (`/sendur/api/leads/find-all`) 
+to receive all our leads. Next, in the `Blocked Leads` node, we parse all the business names, and we pass this to our AI Agent.
+We tell our agent, "hey, you see this list of business names? If you run up on them while you're searching the web, 
+ignore them and don't add them to the final output." I'm sure you can come up with a better prompt...
+Lastly, as a final filter we do something similar in the Sendur application code to ensure we're not persisting 
+duplicates.
 
 <a href="https://n8n.io/integrations/agent/">
-  <img src="images/scheduled_lead_generator_agent.png" alt="Logo" width="800" height="350">
+  <img src="images/scheduled_lead_generator_agent_v1.png" alt="Logo" width="800" height="350">
 </a>
 
 ### Lead & Email Generation

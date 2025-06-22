@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -16,6 +17,7 @@ public class LeadService {
 
     private static final String LEAD_LOAD_FAILURE = "Failed to load lead: {}";
     private static final String LEADS_LOAD_MESSAGE = "Loaded {} out of {} leads";
+    private static final String UPLOADING = "Uploading Lead: {}";
 
     private final LeadRepository leadRepository;
 
@@ -36,7 +38,7 @@ public class LeadService {
         int received = leads.size();
         int loaded = 0;
         for (Lead lead : leads) {
-            System.out.println("Uploading Lead: " + lead.getBusinessName());
+            LOGGER.info(UPLOADING, lead.getBusinessName());
             try {
                 Lead result = leadRepository.save(lead);
                 if (result.getId() != null) {
@@ -53,28 +55,30 @@ public class LeadService {
 
     public int loadScheduledLeads(List<LeadRequest> leads) {
         int received = leads.size();
-        int loaded = 0;
+
+        // We do our best to filter duplicates in the OpenAI prompt, but in order to filter
+        // further, let's do a last filtering here.
+        List<String> persistedLeads = loadAllLeads().stream()
+                .map(Lead::getBusinessName)
+                .toList();
+
+        List<Lead> stagedLeads = new ArrayList<>();
         for (LeadRequest lead : leads) {
-            System.out.println("Uploading Lead: " + lead.getBusinessName());
-            Lead businessLead = new Lead.Builder()
-                    .businessName(lead.getBusinessName())
-                    .email(lead.getEmail())
-                    .city(lead.getCity())
-                    .phone(lead.getPhone())
-                    .website(lead.getWebsite())
-                    .emailDraft(lead.getEmailDraft())
-                    .haveContacted(false)
-                    .build();
-            try {
-                Lead result = leadRepository.save(businessLead);
-                if (result.getId() != null) {
-                    loaded++;
-                }
-            } catch (Exception e) {
-                leadLoadFailureLog(lead.getBusinessName());
-                LOGGER.error(e.getMessage());
+            String businessName = lead.getBusinessName().trim();
+            if (!persistedLeads.contains(businessName)) {
+                Lead businessLead = new Lead.Builder()
+                        .businessName(businessName)
+                        .email(lead.getEmail().trim())
+                        .city(lead.getCity().trim())
+                        .phone(lead.getPhone().trim())
+                        .website(lead.getWebsite().trim())
+                        .emailDraft(lead.getEmailDraft().trim())
+                        .haveContacted(false)
+                        .build();
+                stagedLeads.add(businessLead);
             }
         }
+        int loaded = loadLeads(stagedLeads);
         leadsLoadedLog(loaded, received);
         return loaded;
     }
