@@ -1,6 +1,7 @@
 package io.sendur.controllers;
 
 import io.micrometer.common.util.StringUtils;
+import io.sendur.configurations.N8NConfigurationProperties;
 import io.sendur.models.*;
 import io.sendur.services.LeadService;
 import io.sendur.services.N8NService;
@@ -9,6 +10,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.http.HttpResponse;
@@ -23,11 +27,16 @@ public class LeadsController {
 
     private final LeadService leadService;
     private final N8NService n8NService;
+    private final N8NConfigurationProperties n8NConfigProps;
+
+    private static final String CLIENT_ID = "client_id";
 
     @Autowired
-    public LeadsController(LeadService leadService, N8NService n8NService) {
+    public LeadsController(LeadService leadService, N8NService n8NService,
+                           N8NConfigurationProperties n8NConfigurationProperties) {
         this.leadService = leadService;
         this.n8NService = n8NService;
+        this.n8NConfigProps = n8NConfigurationProperties;
     }
 
     /**
@@ -35,14 +44,21 @@ public class LeadsController {
      *
      * @return {@linkplain ResponseEntity leads}
      */
+    @PreAuthorize("hasAuthority('SCOPE_default-m2m-resource-server-2mqbz7/n8n_reader')")
     @GetMapping("/find-all")
-    public ResponseEntity<List<Lead>> receiveAllLeads() {
-        List<Lead> leads = leadService.loadAllLeads();
-        LOGGER.info("All leads loaded: {}", leads.size());
-        return ResponseEntity.ok()
+    public ResponseEntity<List<Lead>> receiveAllLeads(@AuthenticationPrincipal Jwt jwt) {
+        if (isAuthorizedReaderClient(jwt.getClaim(CLIENT_ID))) {
+            List<Lead> leads = leadService.loadAllLeads();
+            LOGGER.info("All leads loaded: {}", leads.size());
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .lastModified(Instant.now().toEpochMilli())
+                    .body(leads);
+        }
+        return ResponseEntity.badRequest()
                 .contentType(MediaType.APPLICATION_JSON)
                 .lastModified(Instant.now().toEpochMilli())
-                .body(leads);
+                .body(null);
     }
 
     /**
@@ -50,14 +66,21 @@ public class LeadsController {
      *
      * @return {@linkplain ResponseEntity leads} with no emails
      */
+    @PreAuthorize("hasAuthority('SCOPE_default-m2m-resource-server-2mqbz7/n8n_reader')")
     @GetMapping("/find-all-no-emails")
-    public ResponseEntity<List<Lead>> receiveAllLeadsWithNoEmails() {
-        List<Lead> leads = leadService.loadLeadsWithNoEmail();
-        LOGGER.info("All Leads without Emails: {}", leads);
-        return ResponseEntity.ok()
+    public ResponseEntity<List<Lead>> receiveAllLeadsWithNoEmails(@AuthenticationPrincipal Jwt jwt) {
+        if (isAuthorizedReaderClient(jwt.getClaim(CLIENT_ID))) {
+            List<Lead> leads = leadService.loadLeadsWithNoEmail();
+            LOGGER.info("All Leads without Emails: {}", leads);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .lastModified(Instant.now().toEpochMilli())
+                    .body(leads);
+        }
+        return ResponseEntity.badRequest()
                 .contentType(MediaType.APPLICATION_JSON)
                 .lastModified(Instant.now().toEpochMilli())
-                .body(leads);
+                .body(null);
     }
 
     /**
@@ -92,14 +115,21 @@ public class LeadsController {
      *
      * @return {@linkplain ResponseEntity List of Leads}
      */
+    @PreAuthorize("hasAuthority('SCOPE_default-m2m-resource-server-2mqbz7/n8n_reader')")
     @GetMapping("/no-email-scheduler")
-    public ResponseEntity<List<Lead>> loadLeadsWithNoEmails() {
-        List<Lead> leadsWithNoEmails = leadService.loadLeadsWithNoEmail();
-        LOGGER.info("Current leads without email count: {}", leadsWithNoEmails.size());
-        return ResponseEntity.ok()
+    public ResponseEntity<List<Lead>> loadLeadsWithNoEmails(@AuthenticationPrincipal Jwt jwt) {
+        if (isAuthorizedReaderClient(jwt.getClaim(CLIENT_ID))) {
+            List<Lead> leadsWithNoEmails = leadService.loadLeadsWithNoEmail();
+            LOGGER.info("Current leads without email count: {}", leadsWithNoEmails.size());
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .lastModified(Instant.now().toEpochMilli())
+                    .body(leadsWithNoEmails);
+        }
+        return ResponseEntity.badRequest()
                 .contentType(MediaType.APPLICATION_JSON)
                 .lastModified(Instant.now().toEpochMilli())
-                .body(leadsWithNoEmails);
+                .body(null);
     }
 
     /**
@@ -177,5 +207,13 @@ public class LeadsController {
         }
         LOGGER.info("validated leads {} of {} original leads.", validatedLeads.size(), leads.size());
         return validatedLeads;
+    }
+
+    private boolean isAuthorizedReaderClient(String clientId) {
+        return StringUtils.isNotBlank(clientId) && clientId.equals(n8NConfigProps.getReaderClient());
+    }
+
+    private boolean isAuthorizedReaderWriterClient(String clientId) {
+        return StringUtils.isNotBlank(clientId) && clientId.equals(n8NConfigProps.getReaderWriterClient());
     }
 }
