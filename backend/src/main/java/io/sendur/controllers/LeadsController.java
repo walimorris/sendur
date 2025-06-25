@@ -8,28 +8,40 @@ import io.sendur.services.N8NService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/sendur/api/leads")
 public class LeadsController {
     private static final Logger LOGGER = LoggerFactory.getLogger(LeadsController.class);
 
+    @Value("${spring.security.oauth2.client.provider.cognito.issuer-uri}")
+    private String issuer;
+
     private final LeadService leadService;
     private final N8NService n8NService;
     private final N8NConfigurationProperties n8NConfigProps;
 
     private static final String CLIENT_ID = "client_id";
+    private static final String ISS = "iss";
+    private static final String UNAUTHORIZED_ACCESS = "UnAuthorized Access";
 
     @Autowired
     public LeadsController(LeadService leadService, N8NService n8NService,
@@ -44,21 +56,22 @@ public class LeadsController {
      *
      * @return {@linkplain ResponseEntity leads}
      */
-    @PreAuthorize("hasAuthority('SCOPE_default-m2m-resource-server-2mqbz7/n8n_reader')")
+    @PreAuthorize("hasAuthority('SCOPE_default-m2m-resource-server-2mqbz7/n8n_reader') " +
+            "or " + "hasAuthority('OIDC_USER')")
     @GetMapping("/find-all")
-    public ResponseEntity<List<Lead>> receiveAllLeads(@AuthenticationPrincipal Jwt jwt) {
-        if (isAuthorizedReaderClient(jwt.getClaim(CLIENT_ID))) {
-            List<Lead> leads = leadService.loadAllLeads();
-            LOGGER.info("All leads loaded: {}", leads.size());
-            return ResponseEntity.ok()
+    public ResponseEntity<List<Lead>> receiveAllLeads(Authentication authentication) {
+        if (!isExplicitlyAuthorized(authentication)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .contentType(MediaType.APPLICATION_JSON)
                     .lastModified(Instant.now().toEpochMilli())
-                    .body(leads);
+                    .build();
         }
-        return ResponseEntity.badRequest()
+        List<Lead> leads = leadService.loadAllLeads();
+        LOGGER.info("All leads loaded: {}", leads.size());
+        return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .lastModified(Instant.now().toEpochMilli())
-                .body(null);
+                .body(leads);
     }
 
     /**
@@ -69,7 +82,7 @@ public class LeadsController {
     @PreAuthorize("hasAuthority('SCOPE_default-m2m-resource-server-2mqbz7/n8n_reader')")
     @GetMapping("/find-all-no-emails")
     public ResponseEntity<List<Lead>> receiveAllLeadsWithNoEmails(@AuthenticationPrincipal Jwt jwt) {
-        if (isAuthorizedReaderClient(jwt.getClaim(CLIENT_ID))) {
+        if (isAuthorizedReaderMachine(jwt.getClaim(CLIENT_ID))) {
             List<Lead> leads = leadService.loadLeadsWithNoEmail();
             LOGGER.info("All Leads without Emails: {}", leads);
             return ResponseEntity.ok()
@@ -97,20 +110,27 @@ public class LeadsController {
      *
      * @return {@link ResponseEntity}
      */
+    @PreAuthorize("hasAuthority('SCOPE_default-m2m-resource-server-yycznz/n8n_writer')")
     @PostMapping("/receive-scheduled-leads")
-    public ResponseEntity<?> receiveScheduledLeads(@RequestBody List<LeadRequest> leads) {
-        int persistedLeads = leadService.loadScheduledLeads(leads);
-        LOGGER.info("Leads Persisted: {}", persistedLeads);
-        return ResponseEntity.ok()
+    public ResponseEntity<?> receiveScheduledLeads(@RequestBody List<LeadRequest> leads, @AuthenticationPrincipal Jwt jwt) {
+        if (isAuthorizedReaderWriterMachine(jwt.getClaim(CLIENT_ID))) {
+            int persistedLeads = leadService.loadScheduledLeads(leads);
+            LOGGER.info("Leads Persisted: {}", persistedLeads);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .lastModified(Instant.now().toEpochMilli())
+                    .build();
+        }
+        return ResponseEntity.badRequest()
                 .contentType(MediaType.APPLICATION_JSON)
                 .lastModified(Instant.now().toEpochMilli())
-                .build();
+                .body(UNAUTHORIZED_ACCESS);
     }
 
     /**
      * This is called by a scheduler on N8N, which retrieves the business leads,
      * operates on them with OpenAI. The N8N workflow that calls this endpoint
-     * ends by calling {@linkplain #updateLeadsWithEmails(List) /update-emails}
+     * ends by calling {@linkplain #updateLeadsWithEmails(List, Jwt)}  /update-emails
      * endpoint.
      *
      * @return {@linkplain ResponseEntity List of Leads}
@@ -118,7 +138,7 @@ public class LeadsController {
     @PreAuthorize("hasAuthority('SCOPE_default-m2m-resource-server-2mqbz7/n8n_reader')")
     @GetMapping("/no-email-scheduler")
     public ResponseEntity<List<Lead>> loadLeadsWithNoEmails(@AuthenticationPrincipal Jwt jwt) {
-        if (isAuthorizedReaderClient(jwt.getClaim(CLIENT_ID))) {
+        if (isAuthorizedReaderMachine(jwt.getClaim(CLIENT_ID))) {
             List<Lead> leadsWithNoEmails = leadService.loadLeadsWithNoEmail();
             LOGGER.info("Current leads without email count: {}", leadsWithNoEmails.size());
             return ResponseEntity.ok()
@@ -141,14 +161,21 @@ public class LeadsController {
      *
      * @return {@link ResponseEntity}
      */
+    @PreAuthorize("hasAuthority('SCOPE_default-m2m-resource-server-yycznz/n8n_writer')")
     @PostMapping("/update-emails")
-    public ResponseEntity<?> updateLeadsWithEmails(@RequestBody List<Lead> leads) {
-        int leadsResultSize = leadService.loadLeads(leads);
-        LOGGER.info("Updating {} leads: ", leadsResultSize);
-        return ResponseEntity.ok()
+    public ResponseEntity<?> updateLeadsWithEmails(@RequestBody List<Lead> leads, @AuthenticationPrincipal Jwt jwt) {
+        if (isAuthorizedReaderWriterMachine(jwt.getClaim(CLIENT_ID))) {
+            int leadsResultSize = leadService.loadLeads(leads);
+            LOGGER.info("Updating {} leads: ", leadsResultSize);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .lastModified(Instant.now().toEpochMilli())
+                    .build();
+        }
+        return ResponseEntity.badRequest()
                 .contentType(MediaType.APPLICATION_JSON)
                 .lastModified(Instant.now().toEpochMilli())
-                .build();
+                .body(UNAUTHORIZED_ACCESS);
     }
 
     /**
@@ -169,25 +196,32 @@ public class LeadsController {
      *
      * @return {@link ResponseEntity}
      */
+    @PreAuthorize("hasAuthority('SCOPE_default-m2m-resource-server-yycznz/n8n_writer')")
     @PostMapping("/approve-lead-emails")
-    public ResponseEntity<?> approveLeadEmails(@RequestBody List<Lead> leads) {
-        LOGGER.info("Sending approved leads to N8N 'Send Approve Emails Webhook'");
-        List<Lead> validatedLeads = reviewAndValidateLeadRecords(leads);
-        ApprovedLeadsWebhookResult sentApprovedLeadsResponse = n8NService.sendApprovedEmailsToLeads(validatedLeads);
-        if (sentApprovedLeadsResponse != null) {
-            final int statusCode = sentApprovedLeadsResponse.statusCode();
-            final List<WebhookMessageId> webhookMessageIdList = sentApprovedLeadsResponse.webhookMessageIds();
-            LOGGER.info("success. status code: {}", sentApprovedLeadsResponse.statusCode());
-            if (statusCode == 200) {
-                LOGGER.info("Webhook call successful. Content: {}", webhookMessageIdList);
-                return ResponseEntity.ok().body(webhookMessageIdList);
-            } else {
-                LOGGER.warn("Webhook call not exactly success. status code: {}", statusCode);
-                return ResponseEntity.status(statusCode).body(webhookMessageIdList);
+    public ResponseEntity<?> approveLeadEmails(@RequestBody List<Lead> leads, @AuthenticationPrincipal Jwt jwt) {
+        if (isAuthorizedReaderWriterMachine(jwt.getClaim(CLIENT_ID))) {
+            LOGGER.info("Sending approved leads to N8N 'Send Approve Emails Webhook'");
+            List<Lead> validatedLeads = reviewAndValidateLeadRecords(leads);
+            ApprovedLeadsWebhookResult sentApprovedLeadsResponse = n8NService.sendApprovedEmailsToLeads(validatedLeads);
+            if (sentApprovedLeadsResponse != null) {
+                final int statusCode = sentApprovedLeadsResponse.statusCode();
+                final List<WebhookMessageId> webhookMessageIdList = sentApprovedLeadsResponse.webhookMessageIds();
+                LOGGER.info("success. status code: {}", sentApprovedLeadsResponse.statusCode());
+                if (statusCode == 200) {
+                    LOGGER.info("Webhook call successful. Content: {}", webhookMessageIdList);
+                    return ResponseEntity.ok().body(webhookMessageIdList);
+                } else {
+                    LOGGER.warn("Webhook call not exactly success. status code: {}", statusCode);
+                    return ResponseEntity.status(statusCode).body(webhookMessageIdList);
+                }
             }
+            LOGGER.info("something went wrong.");
+            return ResponseEntity.badRequest().body("Webhook call failed");
         }
-        LOGGER.info("something went wrong.");
-        return ResponseEntity.badRequest().body("Webhook call failed");
+        return ResponseEntity.badRequest()
+                .contentType(MediaType.APPLICATION_JSON)
+                .lastModified(Instant.now().toEpochMilli())
+                .body(UNAUTHORIZED_ACCESS);
     }
 
     /**
@@ -209,11 +243,76 @@ public class LeadsController {
         return validatedLeads;
     }
 
-    private boolean isAuthorizedReaderClient(String clientId) {
+    /**
+     * {@code Sendur} auth is handled by Cognito and utilizes {@linkplain OAuth2AuthenticationToken OAuth2 Tokens}.
+     * This method keeps Zero Trust best practices by validating the authenticating state. Here, we validate granted
+     * authorities and issuer as a first step to validating correct OAuth2 authentication state.
+     *
+     * @param authentication {@link Authentication}
+     *
+     * @return boolean
+     */
+    private boolean isValidOauth2Authentication(Authentication authentication) {
+        if (authentication instanceof OAuth2AuthenticationToken oidcToken) {
+            List<String> grantedAuthorities = oidcToken.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .toList();
+            Map<String, Object> userAttributes = oidcToken.getPrincipal().getAttributes();
+
+            String iss = String.valueOf(userAttributes.getOrDefault(ISS, null));
+            return StringUtils.isNotBlank(iss) && iss.equals(issuer) && grantedAuthorities.contains("OIDC_USER");
+        }
+        return false;
+    }
+
+    /**
+     * {@code Sendur} utilizing resource servers on Cognito to issue M2M (Machine to Machine)
+     * {@linkplain JwtAuthenticationToken Jwt Tokens}. Here, the token's {@code Client ID}
+     * claim and authorization scopes are validated for the requesting machine.
+     *
+     * @param authentication {@link Authentication}
+     *
+     * @return boolean
+     */
+    private boolean isValidJwtAuthentication(Authentication authentication) {
+        if (authentication instanceof JwtAuthenticationToken jwtAuthenticationToken) {
+            String claim = jwtAuthenticationToken.getToken().getClaimAsString(CLIENT_ID);
+            return isAuthorizedReaderMachine(claim) || isAuthorizedReaderWriterMachine(claim);
+        }
+        return false;
+    }
+
+    /**
+     * Explicit Authorization comes after validating the state of the requester, and it's valid
+     * credentials. Without explicit authentication all access is denied.
+     *
+     * @param authentication {@link Authentication}
+     *
+     * @return boolean
+     */
+    private boolean isExplicitlyAuthorized(Authentication authentication) {
+        return isValidJwtAuthentication(authentication) || isValidOauth2Authentication(authentication);
+    }
+
+    /**
+     * Validates authorized read scope for M2M (Machine to Machine) communication with n8n.
+     *
+     * @param clientId machine's clientId claim
+     *
+     * @return boolean
+     */
+    private boolean isAuthorizedReaderMachine(String clientId) {
         return StringUtils.isNotBlank(clientId) && clientId.equals(n8NConfigProps.getReaderClient());
     }
 
-    private boolean isAuthorizedReaderWriterClient(String clientId) {
+    /**
+     * Validates authorized read/write scope for M2M (Machine to Machine) communication with n8n.
+     *
+     * @param clientId machine's clientId claim
+     *
+     * @return boolean
+     */
+    private boolean isAuthorizedReaderWriterMachine(String clientId) {
         return StringUtils.isNotBlank(clientId) && clientId.equals(n8NConfigProps.getReaderWriterClient());
     }
 }
