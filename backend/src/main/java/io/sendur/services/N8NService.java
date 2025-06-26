@@ -91,10 +91,10 @@ public class N8NService {
         final int port = n8NConfigurationProperties.getPort();
         try (Socket socket = new Socket(host, port)) {
             if (socket.isConnected()) {
-                LOGGER.info("n8n on PORT {} is open and accepting", port);
+                LOGGER.info("n8n HOST '{}' on PORT '{}' is open and accepting", host, port);
                 return true;
             } else {
-                throw new IllegalStateException("n8n on PORT" + port + " is closed and not accepting");
+                throw new IllegalStateException("n8n HOST " + host + " on PORT " + port + " is closed and not accepting");
             }
         } catch (IOException e) {
             LOGGER.error("Can't connect to {}:{}: {}", host, port, e.getMessage());
