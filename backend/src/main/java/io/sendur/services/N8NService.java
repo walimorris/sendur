@@ -43,6 +43,13 @@ public class N8NService {
         this.n8NConfigurationProperties = n8NConfigurationProperties;
     }
 
+    /**
+     * Sends approved leads to the n8n approved emails webhook and returns the result.
+     *
+     * @param leads approved leads
+     *
+     * @return {@link ApprovedLeadsWebhookResult}
+     */
     public ApprovedLeadsWebhookResult sendApprovedEmailsToLeads(List<Lead> leads) {
         try (ClassicHttpResponse response = hitN8NApprovedEmailWebhook(leads)) {
             int statusCode = response.getCode();
@@ -59,11 +66,31 @@ public class N8NService {
         }
     }
 
+    /**
+     * Sends {@linkplain Lead leads} to n8n approved email webhook.
+     *
+     * @param leads approved leads
+     *
+     * @return {@linkplain ClassicHttpResponse HttpResponse}
+     *
+     * @throws JsonProcessingException leads are malformed
+     */
     private ClassicHttpResponse hitN8NApprovedEmailWebhook(List<Lead> leads) throws JsonProcessingException {
         return postN8NWebhook(n8NConfigurationProperties.getApprovedEmailsWebhook(),
                 n8NConfigurationProperties.getTimeout(), leads);
     }
 
+    /**
+     * Sends a {@linkplain HttpPost POST request} to the given n8n webhook.
+     *
+     * @param webhook n8n webhook target
+     * @param timeout request timeout
+     * @param object request body
+     *
+     * @return {@linkplain ClassicHttpResponse HttpResponse}
+     *
+     * @throws JsonProcessingException request body is malformed
+     */
     private ClassicHttpResponse postN8NWebhook(String webhook, long timeout, Object object) throws JsonProcessingException {
         String json = new ObjectMapper().writeValueAsString(object);
         RequestConfig config = RequestConfig.custom()
@@ -86,6 +113,14 @@ public class N8NService {
         return null;
     }
 
+    /**
+     * Determining if n8n server is accepting communication after attempting socket connection
+     * from Sendur.
+     *
+     * @return boolean
+     *
+     * @throws IllegalStateException this is not wanted state
+     */
     private boolean n8nSocketAccepting() throws IllegalStateException {
         final String host = n8NConfigurationProperties.getHost();
         final int port = n8NConfigurationProperties.getPort();
