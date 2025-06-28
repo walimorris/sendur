@@ -272,7 +272,7 @@ public class LeadsController {
      *
      * @return boolean
      */
-    private boolean isValidJwtAuthentication(Authentication authentication) {
+    private boolean isValidJwtAuthenticatedMachine(Authentication authentication) {
         if (authentication instanceof JwtAuthenticationToken jwtAuthenticationToken) {
             String claim = jwtAuthenticationToken.getToken().getClaimAsString(CLIENT_ID);
             return isAuthorizedReaderMachine(claim) || isAuthorizedReaderWriterMachine(claim);
@@ -289,7 +289,7 @@ public class LeadsController {
      * @return boolean
      */
     private boolean isExplicitlyAuthorized(Authentication authentication) {
-        return isValidJwtAuthentication(authentication) || isValidOauth2Authentication(authentication);
+        return isValidJwtAuthenticatedMachine(authentication) || isValidOauth2Authentication(authentication);
     }
 
     /**
