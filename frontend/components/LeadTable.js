@@ -146,6 +146,7 @@ function EnhancedTableToolbar({numSelected, selected}) {
     async function handleSendLeads() {
         try {
             const response = await axios.post("/sendur/api/leads/approve-lead-emails", selected, {
+                withCredentials: true,
                 headers: {
                     'Content-Type': 'application/json'
                 }
@@ -226,12 +227,10 @@ export default function LeadTable() {
     useEffect(() => {
         const cached = sessionStorage.getItem("leads");
         if (cached) {
-            setLeads(JSON.parse(cached));
             console.log("Loading from cache....");
             console.log(cached);
-        } else {
-            handleLoadAllLeads();
         }
+        handleLoadAllLeads();
     }, []);
 
     async function handleLoadAllLeads() {

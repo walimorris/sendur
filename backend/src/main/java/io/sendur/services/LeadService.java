@@ -34,9 +34,13 @@ public class LeadService {
         return leadRepository.findLeadByEmailNotAvailable();
     }
 
-    public int loadLeads(List<Lead> leads) {
+    public int loadLeads(List<Lead> leads, boolean updater) {
         int received = leads.size();
         int loaded = 0;
+
+        if (!updater) {
+            leads = deduplicateLeads(leads);
+        }
         for (Lead lead : leads) {
             LOGGER.info(UPLOADING, lead.getBusinessName());
             try {
@@ -55,32 +59,39 @@ public class LeadService {
 
     public int loadScheduledLeads(List<LeadRequest> leads) {
         int received = leads.size();
+        List<Lead> stagedLeads = new ArrayList<>();
+        for (LeadRequest lead : leads) {
+            Lead businessLead = new Lead.Builder()
+                    .businessName(lead.getBusinessName().trim())
+                    .email(lead.getEmail().trim())
+                    .city(lead.getCity().trim())
+                    .phone(lead.getPhone().trim())
+                    .website(lead.getWebsite().trim())
+                    .emailDraft(lead.getEmailDraft().trim())
+                    .haveContacted(false)
+                    .build();
+            stagedLeads.add(businessLead);
+        }
+        int loaded = loadLeads(stagedLeads, false);
+        leadsLoadedLog(loaded, received);
+        return loaded;
+    }
 
+    private List<Lead> deduplicateLeads(List<Lead> unverifiedLeads) {
         // We do our best to filter duplicates in the OpenAI prompt, but in order to filter
         // further, let's do a last filtering here.
-        List<String> persistedLeads = loadAllLeads().stream()
+        List<String> persistedBusinesses = loadAllLeads().stream()
                 .map(Lead::getBusinessName)
                 .toList();
 
-        List<Lead> stagedLeads = new ArrayList<>();
-        for (LeadRequest lead : leads) {
-            String businessName = lead.getBusinessName().trim();
-            if (!persistedLeads.contains(businessName)) {
-                Lead businessLead = new Lead.Builder()
-                        .businessName(businessName)
-                        .email(lead.getEmail().trim())
-                        .city(lead.getCity().trim())
-                        .phone(lead.getPhone().trim())
-                        .website(lead.getWebsite().trim())
-                        .emailDraft(lead.getEmailDraft().trim())
-                        .haveContacted(false)
-                        .build();
-                stagedLeads.add(businessLead);
+        List<Lead> verifiedLeads = new ArrayList<>();
+        for (Lead unverifiedLead : unverifiedLeads) {
+            String businessName = unverifiedLead.getBusinessName().trim();
+            if (!persistedBusinesses.contains(businessName)) {
+                verifiedLeads.add(unverifiedLead);
             }
         }
-        int loaded = loadLeads(stagedLeads);
-        leadsLoadedLog(loaded, received);
-        return loaded;
+        return verifiedLeads;
     }
 
     private void leadLoadFailureLog(String businessName) {

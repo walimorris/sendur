@@ -112,44 +112,43 @@ public class LeadsController {
      */
     @PreAuthorize("hasAuthority('SCOPE_default-m2m-resource-server-yycznz/n8n_writer')")
     @PostMapping("/receive-scheduled-leads")
-    public ResponseEntity<?> receiveScheduledLeads(@RequestBody List<LeadRequest> leads, @AuthenticationPrincipal Jwt jwt) {
-        if (isAuthorizedReaderWriterMachine(jwt.getClaim(CLIENT_ID))) {
-            int persistedLeads = leadService.loadScheduledLeads(leads);
-            LOGGER.info("Leads Persisted: {}", persistedLeads);
-            return ResponseEntity.ok()
+    public ResponseEntity<?> receiveScheduledLeads(@RequestBody List<LeadRequest> leads, Authentication authentication) {
+        if (!isExplicitlyAuthorized(authentication)) {
+            return ResponseEntity.badRequest()
                     .contentType(MediaType.APPLICATION_JSON)
                     .lastModified(Instant.now().toEpochMilli())
-                    .build();
+                    .body(UNAUTHORIZED_ACCESS);
         }
-        return ResponseEntity.badRequest()
-                .contentType(MediaType.APPLICATION_JSON)
+        int persistedLeads = leadService.loadScheduledLeads(leads);
+        LOGGER.info("Leads Persisted: {}", persistedLeads);
+        return ResponseEntity.ok()
                 .lastModified(Instant.now().toEpochMilli())
-                .body(UNAUTHORIZED_ACCESS);
+                .build();
     }
 
     /**
      * This is called by a scheduler on N8N, which retrieves the business leads,
      * operates on them with OpenAI. The N8N workflow that calls this endpoint
-     * ends by calling {@linkplain #updateLeadsWithEmails(List, Jwt)}  /update-emails
+     * ends by calling {@linkplain #updateLeadsWithEmails(List, Authentication)}  /update-emails
      * endpoint.
      *
      * @return {@linkplain ResponseEntity List of Leads}
      */
     @PreAuthorize("hasAuthority('SCOPE_default-m2m-resource-server-2mqbz7/n8n_reader')")
     @GetMapping("/no-email-scheduler")
-    public ResponseEntity<List<Lead>> loadLeadsWithNoEmails(@AuthenticationPrincipal Jwt jwt) {
-        if (isAuthorizedReaderMachine(jwt.getClaim(CLIENT_ID))) {
-            List<Lead> leadsWithNoEmails = leadService.loadLeadsWithNoEmail();
-            LOGGER.info("Current leads without email count: {}", leadsWithNoEmails.size());
-            return ResponseEntity.ok()
+    public ResponseEntity<?> loadLeadsWithNoEmails(Authentication authentication) {
+        if (!isExplicitlyAuthorized(authentication)) {
+            return ResponseEntity.badRequest()
                     .contentType(MediaType.APPLICATION_JSON)
                     .lastModified(Instant.now().toEpochMilli())
-                    .body(leadsWithNoEmails);
+                    .body(UNAUTHORIZED_ACCESS);
         }
-        return ResponseEntity.badRequest()
+        List<Lead> leadsWithNoEmails = leadService.loadLeadsWithNoEmail();
+        LOGGER.info("Current leads without email count: {}", leadsWithNoEmails.size());
+        return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .lastModified(Instant.now().toEpochMilli())
-                .body(null);
+                .body(leadsWithNoEmails);
     }
 
     /**
@@ -163,19 +162,18 @@ public class LeadsController {
      */
     @PreAuthorize("hasAuthority('SCOPE_default-m2m-resource-server-yycznz/n8n_writer')")
     @PostMapping("/update-emails")
-    public ResponseEntity<?> updateLeadsWithEmails(@RequestBody List<Lead> leads, @AuthenticationPrincipal Jwt jwt) {
-        if (isAuthorizedReaderWriterMachine(jwt.getClaim(CLIENT_ID))) {
-            int leadsResultSize = leadService.loadLeads(leads);
-            LOGGER.info("Updating {} leads: ", leadsResultSize);
-            return ResponseEntity.ok()
+    public ResponseEntity<?> updateLeadsWithEmails(@RequestBody List<Lead> leads, Authentication authentication) {
+        if (!isExplicitlyAuthorized(authentication)) {
+            return ResponseEntity.badRequest()
                     .contentType(MediaType.APPLICATION_JSON)
                     .lastModified(Instant.now().toEpochMilli())
-                    .build();
+                    .body(UNAUTHORIZED_ACCESS);
         }
-        return ResponseEntity.badRequest()
-                .contentType(MediaType.APPLICATION_JSON)
+        int leadsResultSize = leadService.loadLeads(leads, true);
+        LOGGER.info("Updating {} leads: ", leadsResultSize);
+        return ResponseEntity.ok()
                 .lastModified(Instant.now().toEpochMilli())
-                .body(UNAUTHORIZED_ACCESS);
+                .build();
     }
 
     /**
@@ -196,32 +194,32 @@ public class LeadsController {
      *
      * @return {@link ResponseEntity}
      */
-    @PreAuthorize("hasAuthority('SCOPE_default-m2m-resource-server-yycznz/n8n_writer')")
+    @PreAuthorize("hasAuthority('OIDC_USER')")  // TODO: update this to admin group in cognito and create an auth converter
     @PostMapping("/approve-lead-emails")
-    public ResponseEntity<?> approveLeadEmails(@RequestBody List<Lead> leads, @AuthenticationPrincipal Jwt jwt) {
-        if (isAuthorizedReaderWriterMachine(jwt.getClaim(CLIENT_ID))) {
-            LOGGER.info("Sending approved leads to N8N 'Send Approve Emails Webhook'");
-            List<Lead> validatedLeads = reviewAndValidateLeadRecords(leads);
-            ApprovedLeadsWebhookResult sentApprovedLeadsResponse = n8NService.sendApprovedEmailsToLeads(validatedLeads);
-            if (sentApprovedLeadsResponse != null) {
-                final int statusCode = sentApprovedLeadsResponse.statusCode();
-                final List<WebhookMessageId> webhookMessageIdList = sentApprovedLeadsResponse.webhookMessageIds();
-                LOGGER.info("success. status code: {}", sentApprovedLeadsResponse.statusCode());
-                if (statusCode == 200) {
-                    LOGGER.info("Webhook call successful. Content: {}", webhookMessageIdList);
-                    return ResponseEntity.ok().body(webhookMessageIdList);
-                } else {
-                    LOGGER.warn("Webhook call not exactly success. status code: {}", statusCode);
-                    return ResponseEntity.status(statusCode).body(webhookMessageIdList);
-                }
-            }
-            LOGGER.info("something went wrong.");
-            return ResponseEntity.badRequest().body("Webhook call failed");
+    public ResponseEntity<?> approveLeadEmails(@RequestBody List<Lead> leads, Authentication authentication) {
+        if (!isExplicitlyAuthorized(authentication)) {
+            return ResponseEntity.badRequest()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .lastModified(Instant.now().toEpochMilli())
+                    .body(UNAUTHORIZED_ACCESS);
         }
-        return ResponseEntity.badRequest()
-                .contentType(MediaType.APPLICATION_JSON)
-                .lastModified(Instant.now().toEpochMilli())
-                .body(UNAUTHORIZED_ACCESS);
+        LOGGER.info("Sending approved leads to N8N 'Send Approve Emails Webhook'");
+        List<Lead> validatedLeads = reviewAndValidateLeadRecords(leads);
+        ApprovedLeadsWebhookResult sentApprovedLeadsResponse = n8NService.sendApprovedEmailsToLeads(validatedLeads);
+        if (sentApprovedLeadsResponse != null) {
+            final int statusCode = sentApprovedLeadsResponse.statusCode();
+            final List<WebhookMessageId> webhookMessageIdList = sentApprovedLeadsResponse.webhookMessageIds();
+            LOGGER.info("success. status code: {}", sentApprovedLeadsResponse.statusCode());
+            if (statusCode == 200) {
+                LOGGER.info("Webhook call successful. Content: {}", webhookMessageIdList);
+                return ResponseEntity.ok().body(webhookMessageIdList);
+            } else {
+                LOGGER.warn("Webhook call not exactly success. status code: {}", statusCode);
+                return ResponseEntity.status(statusCode).body(webhookMessageIdList);
+            }
+        }
+        LOGGER.info("something went wrong.");
+        return ResponseEntity.badRequest().body("Webhook call failed");
     }
 
     /**
