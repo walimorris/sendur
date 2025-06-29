@@ -424,7 +424,6 @@ export default function LeadTable() {
                 control={<Switch checked={dense} onChange={handleChangeDense}/>}
                 label="Dense padding"
             />
-            <pre>{JSON.stringify(selected, null, 2)}</pre>
         </Box>
     );
 }
