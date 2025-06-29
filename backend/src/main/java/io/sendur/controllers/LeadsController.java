@@ -256,7 +256,6 @@ public class LeadsController {
                     .map(GrantedAuthority::getAuthority)
                     .toList();
             Map<String, Object> userAttributes = oidcToken.getPrincipal().getAttributes();
-
             String iss = String.valueOf(userAttributes.getOrDefault(ISS, null));
             return StringUtils.isNotBlank(iss) && iss.equals(issuer) && grantedAuthorities.contains("OIDC_USER");
         }
