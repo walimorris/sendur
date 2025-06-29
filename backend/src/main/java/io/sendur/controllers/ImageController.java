@@ -1,8 +1,6 @@
 package io.sendur.controllers;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -16,8 +14,6 @@ import java.io.IOException;
 @RestController
 @RequestMapping("/images")
 public class ImageController {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(ImageController.class);
 
     @GetMapping("/*")
     public ResponseEntity<byte[]> getImage(HttpServletRequest request) throws IOException {

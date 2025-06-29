@@ -1,14 +1,10 @@
 package io.sendur.controllers;
 
-import jakarta.servlet.http.HttpServletRequest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 @Controller
 public class MasterController {
-    public static final Logger LOGGER = LoggerFactory.getLogger(MasterController.class);
 
     /**
      * The Master Controller forwards the specified routes to the built index.html.

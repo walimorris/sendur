@@ -8,6 +8,7 @@ class SiteApplicationTests {
 
 	@Test
 	void contextLoads() {
+		// test coming soon..
 	}
 
 }
