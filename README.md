@@ -112,7 +112,7 @@ All lead data is stored and updated in the system. As the project grows, additio
 - In Terminal : `export N8N_SECURE_COOKIE=false`
 - Run         : `n8n`
 4. Accessing n8n
-- Browser     : <ec2-server-ip>:5678
+- Browser     : ec2-server-ip:5678
 - If you're slowly migrating from local to AWS be sure to update your application's configuration settings
 - You'll also want to ensure your n8n Request Nodes are updated to point to your application server or local ip
 5. Security Tips
