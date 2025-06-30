@@ -119,7 +119,7 @@ All lead data is stored and updated in the system. As the project grows, additio
 - Restrict inbound traffic to n8n server using tight security groups. In dev mode this should be your IP address
 - Later, we'll enable AWS WAF (Web Application Firewall) and tight log accounting
 - n8n has useful AWS Nodes like the <a href="https://docs.n8n.io/integrations/builtin/app-nodes/n8n-nodes-base.awslambda/">Lambda Node</a> - we need to use IAM roles with least privilege for AWS integrations
-- Our EC2 dev instance won't run up a charge (if you used t2.micro 🤑) so shut it down when not in use
+- Our EC2 dev instance won't run up a charge (if you used t2.micro 🤑) but shut n8n down when not in use
 - When we first log in we create server credentials. Please don't use admin/admin or admin/password.
 
 ### Building and Running the Project
