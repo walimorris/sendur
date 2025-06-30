@@ -95,6 +95,33 @@ Approved emails are sent via an n8n webhook trigger, initiating the outbound com
 ### Lead Persistence & Workflow Expansion
 All lead data is stored and updated in the system. As the project grows, additional automations and workflows (e.g., follow-ups, CRM sync, analytics) can be layered on top.
 
+### Deploying n8n on AWS EC2
+1. Spin up an EC2 instance (t2.micro is free 🤑)
+- Chose Ubuntu 22.04 or Amazon Linux 2
+- Ensure to configure security groups to allow traffic on port 5678 (n8n's default port)
+- Keep in mind: server(s) running the application will need inbound permission, and you may want to access n8n locally
+- Create and download the SSH key pair to access your instance
+2. Install nodejs on EC2
+- ssh into your instance
+- Linux 2: (`curl -sL https://rpm.nodesource.com/setup_24.x | sudo bash -`) then run (`sudo yum install -y nodejs`)
+- Ubuntu : (`sudo apt update && sudo apt install -y nodejs npm`)
+3. Install and run n8n
+- Install: `sudo npm install -g n8n`
+- To test your setup (which is currently insecure: no TLS/HTTPS) for development you should disable secure cookies for the meantime
+- Later we will add a load balancer to make this publicly accessible for (yourself, your team, your org)
+- In Terminal : `export N8N_SECURE_COOKIE=false`
+- Run         : `n8n`
+4. Accessing n8n
+- Browser     : <ec2-server-ip>:5678
+- If you're slowly migrating from local to AWS be sure to update your application's configuration settings
+- You'll also want to ensure your n8n Request Nodes are updated to point to your application server or local ip
+5. Security Tips
+- Restrict inbound traffic to n8n server using tight security groups. In dev mode this should be your IP address
+- Later, we'll enable AWS WAF (Web Application Firewall) and tight log accounting
+- n8n has useful AWS Nodes like the <a href="https://docs.n8n.io/integrations/builtin/app-nodes/n8n-nodes-base.awslambda/">Lambda Node</a> - we need to use IAM roles with least privilege for AWS integrations
+- Our EC2 dev instance won't run up a charge (if you used t2.micro 🤑) so shut it down when not in use
+- When we first log in we create server credentials. Please don't use admin/admin or admin/password.
+
 ### Building and Running the Project
 
 #### 1. Build the Project
