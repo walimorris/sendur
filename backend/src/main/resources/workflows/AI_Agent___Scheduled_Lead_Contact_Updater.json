@@ -1,0 +1,251 @@
+{
+  "name": "AI Agent - Scheduled Lead Contact Updater",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -20,
+        100
+      ],
+      "id": "c60c3a28-0d6b-480d-81bf-546bc8a406c7",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:8082/sendur/api/leads/no-email-scheduler",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        280
+      ],
+      "id": "15520980-9ed0-4f64-a44c-af270443f9cd",
+      "name": "HTTP Request",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "gtAqmUNLm6duyb4d",
+          "name": "reader"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a research agent. Your task is to search the internet for official email addresses for the small businesses that are missing this contact detail in the json below.\n\nBelow is a JSON array of small businesses. Each business has an _id, businessName, phone, city, website, emailDraft, haveContacted and email property. Your goal is to search the internet using the business name, phone, and city, and for every record that has \"email\": \"Not available\" you should replace \"Not available\" with the correct business email address if it can be found.\n\n<json>\n{{ JSON.stringify($json, null, 2) }}\n</json>\n\n*Only modify the email field. Keep all other fields exactly the same.\n\nIf no email can be found, leave the field as \"email\": \"Not available\".\n\nReturn a valid JSON array with the same structure, but with updated email values where possible. Do not wrap the result in markdown or code blocks.\n\nExample of updating the email address and leaving other fields as is:\n\nInput:\n{\n  \"businessName\": \"TK Fix It\",\n  \"phone\": \"(425) 559-8535\",\n  \"email\": \"Not available\",\n  \"city\": \"Everett\",\n  \"website\": \"Not available\",\n  \"emailDraft\": \"Hi there...\",\n  \"haveContacted\": false,\n  \"_id\": \"6844e95e32a2e56cabc15697\"\n}\n\nOutput:\n{\n  \"businessName\": \"TK Fix It\",\n  \"phone\": \"(425) 559-8535\",\n  \"email\": \"tkfixit@gmail.com\",\n  \"city\": \"Everett\",\n  \"website\": \"Not available\",\n  \"emailDraft\": \"Hi there...\",\n  \"haveContacted\": false,\n  \"_id\": \"6844e95e32a2e56cabc15697\"\n}\n",
+        "options": {
+          "batching": {
+            "batchSize": 15
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        560,
+        280
+      ],
+      "id": "ab3a665b-145c-47ff-83d1-3888c59ba532",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        560,
+        460
+      ],
+      "id": "19c1af07-8b55-4b0d-9b93-6e960c59bb88",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "G67VKe9WzwICf0aN",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolSerpApi",
+      "typeVersion": 1,
+      "position": [
+        780,
+        460
+      ],
+      "id": "bbf2b0d2-e2c4-4c97-af3d-754c14a8d45e",
+      "name": "SerpAPI",
+      "credentials": {
+        "serpApi": {
+          "id": "7Q9Dz9S1xJYj4gwp",
+          "name": "SerpAPI - Sendur Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const leadsWithEmails = [];\n\nfor (const item of $input.all()) {\n  const batch = JSON.parse(item.json.output).allBusinesses;\n\n  for (const lead of batch) {\n    if (\n      lead.email &&\n      lead.email !== 'Not available' &&\n      lead.email.includes('@')\n    ) {\n      leadsWithEmails.push(lead);\n    }\n  }\n}\n\nreturn [\n  {\n    json: {\n      allBusinesses: leadsWithEmails\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        140
+      ],
+      "id": "a2da87d5-8d85-44b6-9460-1be26a10b9b9",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all();\n\nreturn [\n  {\n    json: {\n      allBusinesses: allItems.map(item => item.json)\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        120
+      ],
+      "id": "b92a7438-d07e-46f6-b06a-820115ff896b",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8082/sendur/api/leads/update-emails",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.allBusinesses }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1060,
+        280
+      ],
+      "id": "de218384-ac4f-4f39-a492-05fbf8eafd1e",
+      "name": "HTTP Request1",
+      "executeOnce": false,
+      "alwaysOutputData": false,
+      "credentials": {
+        "oAuth2Api": {
+          "id": "l9FzHruXeGefitfM",
+          "name": "writer"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SerpAPI": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "31083eaa-8b7d-4164-bc96-13d20d8eff53",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7afc0305c47ea1b18b388a04468ad56c5f32d0d81aad4947e3ecea699a84d4da"
+  },
+  "id": "PMQuvLzHctXRBhGn",
+  "tags": []
+}

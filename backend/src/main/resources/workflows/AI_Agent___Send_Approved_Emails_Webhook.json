@@ -1,0 +1,214 @@
+{
+  "name": "AI Agent - Send Approved Emails Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "7eaaf127-15a0-4725-b703-26866ef07cee",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "ignoreBots": false
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        -180
+      ],
+      "id": "465460ef-b41d-45df-af7f-a9c7e27ec4cc",
+      "name": "Webhook",
+      "webhookId": "7eaaf127-15a0-4725-b703-26866ef07cee"
+    },
+    {
+      "parameters": {
+        "resource": "mail",
+        "fromEmail": "hello@luziotech.com",
+        "fromName": "Luzio",
+        "toEmail": "=walimmorris@gmail.com",
+        "subject": "={{ $json.businessName }} Your Business Deserves a Website That Works as Hard as You Do",
+        "contentType": "text/html",
+        "contentValue": "=<html>\n  <body style=\"font-family: Arial, sans-serif; color: #333;\">\n    <!-- Luzio Logo -->\n    <div style=\"text-align: center; margin-bottom: 20px;\">\n      <img src=\"https://picsum.photos/600/200\" alt=\"Luzio\" width=\"150\" />\n    </div>\n\n    <!-- Custom Email Body -->\n    <p>{{ $json.emailDraft }}</p>\n\n    <!-- Website CTA -->\n    <div style=\"margin-top: 30px;\">\n      <a href=\"https://www.bulpropainting.com\" \n         style=\"background-color: #1e88e5; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;\">\n        Visit Our Website\n      </a>\n    </div>\n\n    <p style=\"margin-top: 20px; font-weight: bold;\">Who We Are</p>\n<p style=\"margin-bottom: 30px;\">\n  Luzio is a small consulting studio that builds modern, mobile-friendly websites and automations for local businesses.\n  We help small companies look sharp online and connect with more customers. Our consultations are always free.\n</p>\n\n    <p style=\"font-size: 12px; color: #888; margin-top: 20px;\">\n      Sent by Luzio — Enlighten & Delight your digital presence\n    </p>\n  </body>\n</html>",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.sendGrid",
+      "typeVersion": 1,
+      "position": [
+        600,
+        0
+      ],
+      "id": "cee14ac3-44ee-429d-ac36-c459b52dd724",
+      "name": "SendGrid",
+      "credentials": {
+        "sendGridApi": {
+          "id": "qZKN4FLnpVYDZ6ck",
+          "name": "SendGrid account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body",
+        "include": "allOtherFields",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        140,
+        0
+      ],
+      "id": "dbbcbe12-9326-4fff-b8e5-22f11751401f",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nreturn {\n  json: $json.body\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        360,
+        -180
+      ],
+      "id": "6a01e5c3-f021-4e42-b60c-5613f54b22c9",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        800,
+        -180
+      ],
+      "id": "544b562a-1d2f-4691-8d52-5543bb5da4bc",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {
+    "Split Out": [
+      {
+        "json": {
+          "headers": {
+            "content-type": "application/json",
+            "user-agent": "Sendur",
+            "accept-encoding": "gzip, x-gzip, deflate",
+            "host": "localhost:5678",
+            "content-length": "757",
+            "connection": "keep-alive"
+          },
+          "params": {},
+          "query": {},
+          "webhookUrl": "http://localhost:5678/webhook/7eaaf127-15a0-4725-b703-26866ef07cee",
+          "executionMode": "production",
+          "body": {
+            "businessName": "Danika Plumbing LLC",
+            "phone": "(425) 374-1557",
+            "email": "office@danikaplumbing.com",
+            "city": "Everett",
+            "website": "Not available",
+            "emailDraft": "Hello! I came across your plumbing services and would love to offer a free consultation for a new website to help showcase your services better!",
+            "haveContacted": false,
+            "_id": "6844e95e32a2e56cabc15691"
+          }
+        }
+      },
+      {
+        "json": {
+          "headers": {
+            "content-type": "application/json",
+            "user-agent": "Sendur",
+            "accept-encoding": "gzip, x-gzip, deflate",
+            "host": "localhost:5678",
+            "content-length": "757",
+            "connection": "keep-alive"
+          },
+          "params": {},
+          "query": {},
+          "webhookUrl": "http://localhost:5678/webhook/7eaaf127-15a0-4725-b703-26866ef07cee",
+          "executionMode": "production",
+          "body": {
+            "businessName": "Mr. Handyman of Everett",
+            "phone": "(425) 292-6300",
+            "email": "calvinb@everetthandymanservice.com",
+            "city": "Everett",
+            "website": "http://www.everetthandymanservice.com/",
+            "emailDraft": "Hello! I admire the work you do and would like to discuss offering you a free consultation to improve your website and boost your online presence.",
+            "haveContacted": false,
+            "_id": "6844e95e32a2e56cabc15694"
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "SendGrid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SendGrid": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e41e977b-05ff-4807-bd53-22340e6945fe",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7afc0305c47ea1b18b388a04468ad56c5f32d0d81aad4947e3ecea699a84d4da"
+  },
+  "id": "nCAzQ1BzWpczrqqs",
+  "tags": []
+}

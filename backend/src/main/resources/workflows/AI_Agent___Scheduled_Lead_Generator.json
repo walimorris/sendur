@@ -1,0 +1,253 @@
+{
+  "name": "AI Agent - Scheduled Lead Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "d5e60eb2-267c-4f68-aefe-439031bcaceb",
+      "name": "OpenAI Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        640,
+        220
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "G67VKe9WzwICf0aN",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        20,
+        -220
+      ],
+      "id": "5651bc3f-6cf5-44b7-89f3-88faa11d7479",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Your task is to find 50 small mom-and-pop service businesses (painters, plumbers, handymen) that either lack a website or have outdated websites, located in Lake Stevens, Snohomish, Granite Falls, Arlington, and Everett, WA.\n\nReturn a JSON array with **exactly 50 business records**. For each business, include:\n\n- businessName\n- email (or \"Not available\")\n- phone (or \"Not available\")\n- city (or \"Not available\")\n- website (or \"Not available\")\n- emailDraft (a short, personalized cold outreach message offering a free consultation for a new website or better digital presence)\n\nOnly return raw JSON — **do not wrap the output in markdown, backticks, or explain anything**.\nReturn the array as native JSON — do not wrap it in quotes or format it as a string. Just return the actual array structure.\n\nIf the business data is sparse online, do not generate fake data AT ALL. All businesses\ndata you collect must be real. \n\n** DO NOT include these businesses: if you run into search results for the following businesses, do not include them in the final result: *\n\n{{ $json.blockedBusinesses }}\n\nBelow is a format example (DO NOT return this — it is just for structure):\n\n[\n  {\n    \"businessName\": \"Everett Painting Co.\",\n    \"email\": \"info@everettpainting.com\",\n    \"phone\": \"(425) 123-4567\",\n    \"city\": \"Everett\",\n    \"website\": \"https://everettpainting.com\",\n    \"emailDraft\": \"Hi there, I noticed your business and wanted to offer a free consultation...\"\n  },\n  ...\n]\n\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        640,
+        0
+      ],
+      "id": "5ef753fc-a418-4c34-8ea3-a678d148e312",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {
+          "gl": "us",
+          "hl": "en"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolSerpApi",
+      "typeVersion": 1,
+      "position": [
+        840,
+        220
+      ],
+      "id": "dec5a1a2-6aa8-4dc9-9ca8-4ff35ffd53ec",
+      "name": "SerpAPI",
+      "credentials": {
+        "serpApi": {
+          "id": "7Q9Dz9S1xJYj4gwp",
+          "name": "SerpAPI - Sendur Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:8082/sendur/api/leads/find-all",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "id": "16d8c6d7-c6fd-47a2-83a4-6209be95b7a5",
+      "name": "Get All Leads",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "gtAqmUNLm6duyb4d",
+          "name": "reader"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const names = $input.all().map(i => i.json.businessName);\nconst combined = names.join(\", \");\n\nreturn [\n  {\n    json: {\n      blockedBusinesses: combined\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        -200
+      ],
+      "id": "02ac2b26-61cf-4a4b-950d-bc5d03cee15e",
+      "name": "Blocked Leads"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.output\nconst parsed = JSON.parse(raw);\nreturn [{json:{leads: parsed }}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        -180
+      ],
+      "id": "15c6ee37-b210-440a-8da1-8434f1b34bf3",
+      "name": "Structure the Leads"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8082/sendur/api/leads/receive-scheduled-leads",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.leads }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1240,
+        -20
+      ],
+      "id": "bd68ad7c-b2a2-46aa-88d0-7da219a27b62",
+      "name": "Receive Scheduled Leads",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "l9FzHruXeGefitfM",
+          "name": "writer"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "OpenAI Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get All Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Structure the Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SerpAPI": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Leads": {
+      "main": [
+        [
+          {
+            "node": "Blocked Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Blocked Leads": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structure the Leads": {
+      "main": [
+        [
+          {
+            "node": "Receive Scheduled Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1fdf2d98-a0f5-47c7-a6ed-3a33a4d4cb13",
+  "meta": {
+    "templateId": "self-building-ai-agent",
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7afc0305c47ea1b18b388a04468ad56c5f32d0d81aad4947e3ecea699a84d4da"
+  },
+  "id": "d9LQYRJK7EY2uioj",
+  "tags": []
+}

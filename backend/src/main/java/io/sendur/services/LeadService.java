@@ -1,7 +1,7 @@
 package io.sendur.services;
 
-import io.sendur.models.Lead;
-import io.sendur.models.LeadRequest;
+import io.sendur.models.leads.Lead;
+import io.sendur.models.leads.LeadRequest;
 import io.sendur.repositories.LeadRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +22,7 @@ public class LeadService {
     private final LeadRepository leadRepository;
 
     @Autowired
-    public LeadService(LeadRepository leadRepository) {
+    public LeadService(final LeadRepository leadRepository) {
         this.leadRepository = leadRepository;
     }
 

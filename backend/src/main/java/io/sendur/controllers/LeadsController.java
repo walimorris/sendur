@@ -1,54 +1,47 @@
 package io.sendur.controllers;
 
-import io.sendur.configurations.N8NConfigurationProperties;
-import io.sendur.models.*;
+import io.sendur.models.leads.ApprovedLeadsWebhookResult;
+import io.sendur.models.leads.Lead;
+import io.sendur.models.leads.LeadRequest;
+import io.sendur.models.leads.WebhookMessageId;
+import io.sendur.security.AuthService;
 import io.sendur.services.LeadService;
 import io.sendur.services.N8NService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/sendur/api/leads")
 public class LeadsController {
     private static final Logger LOGGER = LoggerFactory.getLogger(LeadsController.class);
 
-    @Value("${spring.security.oauth2.client.provider.cognito.issuer-uri}")
-    private String issuer;
-
     private final LeadService leadService;
     private final N8NService n8NService;
-    private final N8NConfigurationProperties n8NConfigProps;
+    private final AuthService authService;
 
     private static final String CLIENT_ID = "client_id";
-    private static final String ISS = "iss";
     private static final String UNAUTHORIZED_ACCESS = "UnAuthorized Access";
 
     @Autowired
-    public LeadsController(LeadService leadService, N8NService n8NService,
-                           N8NConfigurationProperties n8NConfigurationProperties) {
+    public LeadsController(final LeadService leadService, final N8NService n8NService, final AuthService authService) {
         this.leadService = leadService;
         this.n8NService = n8NService;
-        this.n8NConfigProps = n8NConfigurationProperties;
+        this.authService = authService;
     }
 
     /**
@@ -60,7 +53,7 @@ public class LeadsController {
             "or " + "hasAuthority('OIDC_USER')")
     @GetMapping("/find-all")
     public ResponseEntity<List<Lead>> receiveAllLeads(Authentication authentication) {
-        if (!isExplicitlyAuthorized(authentication)) {
+        if (!authService.isExplicitlyAuthorized(authentication)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .contentType(MediaType.APPLICATION_JSON)
                     .lastModified(Instant.now().toEpochMilli())
@@ -82,7 +75,7 @@ public class LeadsController {
     @PreAuthorize("hasAuthority('SCOPE_default-m2m-resource-server-2mqbz7/n8n_reader')")
     @GetMapping("/find-all-no-emails")
     public ResponseEntity<List<Lead>> receiveAllLeadsWithNoEmails(@AuthenticationPrincipal Jwt jwt) {
-        if (isAuthorizedReaderMachine(jwt.getClaim(CLIENT_ID))) {
+        if (authService.isAuthorizedReaderMachine(jwt.getClaim(CLIENT_ID))) {
             List<Lead> leads = leadService.loadLeadsWithNoEmail();
             LOGGER.info("All Leads without Emails: {}", leads);
             return ResponseEntity.ok()
@@ -113,7 +106,7 @@ public class LeadsController {
     @PreAuthorize("hasAuthority('SCOPE_default-m2m-resource-server-yycznz/n8n_writer')")
     @PostMapping("/receive-scheduled-leads")
     public ResponseEntity<?> receiveScheduledLeads(@RequestBody List<LeadRequest> leads, Authentication authentication) {
-        if (!isExplicitlyAuthorized(authentication)) {
+        if (!authService.isExplicitlyAuthorized(authentication)) {
             return ResponseEntity.badRequest()
                     .contentType(MediaType.APPLICATION_JSON)
                     .lastModified(Instant.now().toEpochMilli())
@@ -137,7 +130,7 @@ public class LeadsController {
     @PreAuthorize("hasAuthority('SCOPE_default-m2m-resource-server-2mqbz7/n8n_reader')")
     @GetMapping("/no-email-scheduler")
     public ResponseEntity<?> loadLeadsWithNoEmails(Authentication authentication) {
-        if (!isExplicitlyAuthorized(authentication)) {
+        if (!authService.isExplicitlyAuthorized(authentication)) {
             return ResponseEntity.badRequest()
                     .contentType(MediaType.APPLICATION_JSON)
                     .lastModified(Instant.now().toEpochMilli())
@@ -163,7 +156,7 @@ public class LeadsController {
     @PreAuthorize("hasAuthority('SCOPE_default-m2m-resource-server-yycznz/n8n_writer')")
     @PostMapping("/update-emails")
     public ResponseEntity<?> updateLeadsWithEmails(@RequestBody List<Lead> leads, Authentication authentication) {
-        if (!isExplicitlyAuthorized(authentication)) {
+        if (!authService.isExplicitlyAuthorized(authentication)) {
             return ResponseEntity.badRequest()
                     .contentType(MediaType.APPLICATION_JSON)
                     .lastModified(Instant.now().toEpochMilli())
@@ -197,7 +190,7 @@ public class LeadsController {
     @PreAuthorize("hasAuthority('OIDC_USER')")  // TODO: update this to admin group in cognito and create an auth converter
     @PostMapping("/approve-lead-emails")
     public ResponseEntity<?> approveLeadEmails(@RequestBody List<Lead> leads, Authentication authentication) {
-        if (!isExplicitlyAuthorized(authentication)) {
+        if (!authService.isExplicitlyAuthorized(authentication)) {
             return ResponseEntity.badRequest()
                     .contentType(MediaType.APPLICATION_JSON)
                     .lastModified(Instant.now().toEpochMilli())
@@ -239,77 +232,5 @@ public class LeadsController {
         }
         LOGGER.info("validated leads {} of {} original leads.", validatedLeads.size(), leads.size());
         return validatedLeads;
-    }
-
-    /**
-     * {@code Sendur} auth is handled by Cognito and utilizes {@linkplain OAuth2AuthenticationToken OAuth2 Tokens}.
-     * This method keeps Zero Trust best practices by validating the authenticating state. Here, we validate granted
-     * authorities and issuer as a first step to validating correct OAuth2 authentication state.
-     *
-     * @param authentication {@link Authentication}
-     *
-     * @return boolean
-     */
-    private boolean isValidOauth2Authentication(Authentication authentication) {
-        if (authentication instanceof OAuth2AuthenticationToken oidcToken) {
-            List<String> grantedAuthorities = oidcToken.getAuthorities().stream()
-                    .map(GrantedAuthority::getAuthority)
-                    .toList();
-            Map<String, Object> userAttributes = oidcToken.getPrincipal().getAttributes();
-            String iss = String.valueOf(userAttributes.getOrDefault(ISS, null));
-            return StringUtils.isNotBlank(iss) && iss.equals(issuer) && grantedAuthorities.contains("OIDC_USER");
-        }
-        return false;
-    }
-
-    /**
-     * {@code Sendur} utilizing resource servers on Cognito to issue M2M (Machine to Machine)
-     * {@linkplain JwtAuthenticationToken Jwt Tokens}. Here, the token's {@code Client ID}
-     * claim and authorization scopes are validated for the requesting machine.
-     *
-     * @param authentication {@link Authentication}
-     *
-     * @return boolean
-     */
-    private boolean isValidJwtAuthenticatedMachine(Authentication authentication) {
-        if (authentication instanceof JwtAuthenticationToken jwtAuthenticationToken) {
-            String claim = jwtAuthenticationToken.getToken().getClaimAsString(CLIENT_ID);
-            return isAuthorizedReaderMachine(claim) || isAuthorizedReaderWriterMachine(claim);
-        }
-        return false;
-    }
-
-    /**
-     * Explicit Authorization comes after validating the state of the requester, and it's valid
-     * credentials. Without explicit authentication all access is denied.
-     *
-     * @param authentication {@link Authentication}
-     *
-     * @return boolean
-     */
-    private boolean isExplicitlyAuthorized(Authentication authentication) {
-        return isValidJwtAuthenticatedMachine(authentication) || isValidOauth2Authentication(authentication);
-    }
-
-    /**
-     * Validates authorized read scope for M2M (Machine to Machine) communication with n8n.
-     *
-     * @param clientId machine's clientId claim
-     *
-     * @return boolean
-     */
-    private boolean isAuthorizedReaderMachine(String clientId) {
-        return StringUtils.isNotBlank(clientId) && clientId.equals(n8NConfigProps.getReaderClient());
-    }
-
-    /**
-     * Validates authorized read/write scope for M2M (Machine to Machine) communication with n8n.
-     *
-     * @param clientId machine's clientId claim
-     *
-     * @return boolean
-     */
-    private boolean isAuthorizedReaderWriterMachine(String clientId) {
-        return StringUtils.isNotBlank(clientId) && clientId.equals(n8NConfigProps.getReaderWriterClient());
     }
 }

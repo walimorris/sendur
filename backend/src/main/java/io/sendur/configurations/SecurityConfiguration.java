@@ -1,6 +1,6 @@
 package io.sendur.configurations;
 
-import io.sendur.models.CognitoLogoutHandler;
+import io.sendur.models.authentication.CognitoLogoutHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;

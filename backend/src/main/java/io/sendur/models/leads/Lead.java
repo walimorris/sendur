@@ -1,4 +1,4 @@
-package io.sendur.models;
+package io.sendur.models.leads;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;

@@ -1,6 +1,6 @@
 package io.sendur.repositories;
 
-import io.sendur.models.Lead;
+import io.sendur.models.leads.Lead;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;

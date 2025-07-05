@@ -4,10 +4,15 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.sendur.configurations.N8NConfigurationProperties;
-import io.sendur.models.ApprovedLeadsWebhookResult;
-import io.sendur.models.Lead;
-import io.sendur.models.WebhookMessageId;
+import io.sendur.models.leads.ApprovedLeadsWebhookResult;
+import io.sendur.models.leads.Lead;
+import io.sendur.models.leads.WebhookMessageId;
+import io.sendur.models.workflows.Node;
+import io.sendur.models.workflows.Parameters;
+import io.sendur.models.workflows.Workflow;
+import io.sendur.models.workflows.WorkflowConverter;
 import io.sendur.repositories.LeadRepository;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -22,7 +27,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -34,13 +39,20 @@ public class N8NService {
     private static final String APPLICATION_JSON = "application/json";
     private static final String APP_NAME = "Sendur";
 
+    // n8n parameter types - make this an ENUM
+    private static final String LLM_NODE = "@n8n/n8n-nodes-langchain.agent";
+
     private final LeadRepository leadRepository;
     private final N8NConfigurationProperties n8NConfigurationProperties;
+    private final ResourceLoaderService resourceLoaderService;
 
     @Autowired
-    public N8NService(LeadRepository leadRepository, N8NConfigurationProperties n8NConfigurationProperties) {
+    public N8NService(final LeadRepository leadRepository,
+                      final N8NConfigurationProperties n8NConfigurationProperties,
+                      final ResourceLoaderService resourceLoaderService) {
         this.leadRepository = leadRepository;
         this.n8NConfigurationProperties = n8NConfigurationProperties;
+        this.resourceLoaderService = resourceLoaderService;
     }
 
     /**
@@ -135,5 +147,53 @@ public class N8NService {
             LOGGER.error("Can't connect to {}:{}: {}", host, port, e.getMessage());
         }
         return false;
+    }
+
+    /**
+     * Retrieve all current LLM prompts from a current workflow. Iterates on the workflow nodes,
+     * finds all the agents and pulls the prompt from the agent. Adds the node ID to the Map as
+     * a reference point.
+     *
+     * @param workflowName n8n workflow name to search
+     *
+     * @return {@link Map} containing Node ID and Prompt
+     * @throws IOException exception serializing workflow
+     */
+    public Map<UUID, String> getLlmPromptsFromWorkflow(String workflowName) throws IOException {
+        // iterate nodes and get all the llm nodes
+        Workflow workflow = loadWorkflow(workflowName);
+        if (workflow != null) {
+            List<Node> nodes = workflow.getNodes();
+            Map<UUID, String> prompts = new HashMap<>();
+            for (Node node : nodes) {
+                if (node.getType().equals(LLM_NODE)) {
+                    // get the parameter that contain the prompt
+                    Parameters parameters = node.getParameters();
+                    if (StringUtils.isEmpty(parameters.getText())) {
+                        prompts.put(node.getID(), "empty prompt - review configuration");
+                    } else {
+                        prompts.put(node.getID(), parameters.getText());
+                    }
+                }
+            }
+            return prompts;
+        }
+        return new HashMap<>();
+    }
+
+    /**
+     * Load n8n workflow configuration from resource path.
+     *
+     * @param workflowName n8n workflow name
+     *
+     * @return {@link Workflow} n8n workflow
+     * @throws IOException exception loading workflow from resource
+     */
+    private Workflow loadWorkflow(String workflowName) throws IOException {
+        final String workflowJson = resourceLoaderService.loadWorkflowJson(workflowName);
+        if (!StringUtils.isEmpty(workflowJson)) {
+            return WorkflowConverter.fromJsonString(workflowJson);
+        }
+        return null;
     }
 }

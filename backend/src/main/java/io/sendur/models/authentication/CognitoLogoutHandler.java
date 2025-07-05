@@ -1,4 +1,4 @@
-package io.sendur.models;
+package io.sendur.models.authentication;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

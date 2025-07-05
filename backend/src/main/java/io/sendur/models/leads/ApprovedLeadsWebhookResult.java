@@ -1,4 +1,4 @@
-package io.sendur.models;
+package io.sendur.models.leads;
 
 import java.util.List;
 
