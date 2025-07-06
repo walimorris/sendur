@@ -73,6 +73,28 @@ public class ResourceLoaderService {
      * @return {@link List<String>} Names of all workflows that contain AI Agents
      */
     public List<String> getAiAgentWorkFlowNames() {
+        List<String> aiWorkflowNames = new ArrayList<>();
+        List<String> allWorkflowNames = getAllWorkFlowNames();
+        for (String workflowName : allWorkflowNames) {
+            if (StringUtils.startsWithIgnoreCase(workflowName, AI_AGENT_FILE_PREFIX)) {
+                workflowName = StringUtils.substring(workflowName, AI_AGENT_FILE_PREFIX.length());
+                if (StringUtils.endsWithIgnoreCase(workflowName, JSON_FILE_EXT)) {
+                    workflowName = StringUtils.substringBeforeLast(workflowName, JSON_FILE_EXT);
+                }
+                aiWorkflowNames.add(workflowName);
+            }
+        }
+        return aiWorkflowNames;
+    }
+
+    /**
+     * Get all workflow names in its Raw form. No truncation is currently processed on these
+     * workflow names and what is retrieved is the full workflow name as it appears in the
+     * resource file system.
+     *
+     * @return {@link List<String>} all workflow names
+     */
+    public List<String> getAllWorkFlowNames() {
         List<String> names = new ArrayList<>();
         try {
             Enumeration<URL> resources = getClass().getClassLoader().getResources(WORKFLOW_DIR);
@@ -83,16 +105,13 @@ public class ResourceLoaderService {
                     if (files != null) {
                         for (File file : files) {
                             LOGGER.info("File Name: {}", file.getName());
-                            if (file.getName().startsWith(AI_AGENT_FILE_PREFIX)) {
-                                String name = StringUtils.substring(file.getName(), AI_AGENT_FILE_PREFIX.length());
-                                names.add(StringUtils.substringBeforeLast(name, JSON_FILE_EXT));
-                            }
+                            names.add(file.getName());
                         }
                     }
                 }
             }
         } catch (IOException e) {
-            LOGGER.error("Cannot get ai workflow files from resource directory: {}. {}", WORKFLOW_DIR, e.getMessage());
+            LOGGER.error("Error loading files from resource directory: {}. {}", WORKFLOW_DIR, e.getMessage());
         }
         return names;
     }

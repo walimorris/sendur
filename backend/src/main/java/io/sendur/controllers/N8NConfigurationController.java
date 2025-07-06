@@ -1,5 +1,6 @@
 package io.sendur.controllers;
 
+import io.sendur.models.workflows.WorkFlowPrompt;
 import io.sendur.security.AuthService;
 import io.sendur.services.N8NService;
 import org.slf4j.Logger;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -37,7 +39,7 @@ public class N8NConfigurationController {
 
     @PreAuthorize("hasAuthority('OIDC_USER')")
     @GetMapping("/receive-prompts")
-    public ResponseEntity<Map<UUID, String>> receiveAllLeads(Authentication authentication, @RequestParam String workflowName) {
+    public ResponseEntity<List<WorkFlowPrompt>> receiveAllLeads(Authentication authentication, @RequestParam String workflowName) {
         if (!authService.isExplicitlyAuthorized(authentication)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -46,10 +48,18 @@ public class N8NConfigurationController {
         }
         try {
             Map<UUID, String> prompts = n8nService.getLlmPromptsFromWorkflow(workflowName);
+            List<WorkFlowPrompt> workFlowPrompts = new ArrayList<>();
+            for (Map.Entry<UUID, String> entry : prompts.entrySet()) {
+                WorkFlowPrompt workFlowPrompt = new WorkFlowPrompt();
+                workFlowPrompt.setName(workflowName);
+                workFlowPrompt.setId(entry.getKey());
+                workFlowPrompt.setPrompt(entry.getValue());
+                workFlowPrompts.add(workFlowPrompt);
+            }
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_JSON)
                     .lastModified(Instant.now().toEpochMilli())
-                    .body(prompts);
+                    .body(workFlowPrompts);
         } catch (IOException e) {
             LOGGER.error("Error getting prompts from workflow {}. {}", workflowName, e.getMessage());
             return ResponseEntity.badRequest().build();
@@ -57,7 +67,7 @@ public class N8NConfigurationController {
     }
 
     @PreAuthorize("hasAuthority('OIDC_USER')")
-    @GetMapping("/ai-gent-workflow-names")
+    @GetMapping("/ai-agent-workflow-names")
     public ResponseEntity<List<String>> aiGentWorkflowNames(Authentication authentication) {
         if (!authService.isExplicitlyAuthorized(authentication)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)

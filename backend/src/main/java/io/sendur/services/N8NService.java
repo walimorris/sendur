@@ -149,6 +149,11 @@ public class N8NService {
         return false;
     }
 
+    /**
+     * Get All workflow names that contain AI Agents.
+     *
+     * @return {@link List<String>} workflow names
+     */
     public List<String> getWorkflowNamesWithAiAgents() {
         return resourceLoaderService.getAiAgentWorkFlowNames();
     }
