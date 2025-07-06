@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -53,5 +54,21 @@ public class N8NConfigurationController {
             LOGGER.error("Error getting prompts from workflow {}. {}", workflowName, e.getMessage());
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    @PreAuthorize("hasAuthority('OIDC_USER')")
+    @GetMapping("/ai-gent-workflow-names")
+    public ResponseEntity<List<String>> aiGentWorkflowNames(Authentication authentication) {
+        if (!authService.isExplicitlyAuthorized(authentication)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .lastModified(Instant.now().toEpochMilli())
+                    .build();
+        }
+        List<String> workflowNames = n8nService.getWorkflowNamesWithAiAgents();
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .lastModified(Instant.now().toEpochMilli())
+                .body(workflowNames);
     }
 }

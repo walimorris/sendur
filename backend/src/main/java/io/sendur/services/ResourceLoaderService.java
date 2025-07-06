@@ -5,16 +5,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.util.*;
 
 @Service
 public class ResourceLoaderService {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResourceLoaderService.class);
 
-    private static final String AI_AGENT_FILE_PREFIX = "AI_AGENT___";
+    private static final String AI_AGENT_FILE_PREFIX = "AI_Agent___";
     private static final String AI_AGENT_RAW = "AI Agent - ";
     private static final String WORKFLOW_DIR = "workflows";
 
@@ -24,14 +27,18 @@ public class ResourceLoaderService {
 
     /**
      * Load and return n8n workflow json configuration.
-     * TODO: Make file names case in-sensitive
      *
-     * <ul> Rules
-     *     <li>Ensure the work flow name matches it's stored name</li>
-     *     <li>Prefix the workflow with what its known for (ex: AI Agent - Scheduled_workflow)</li>
-     *     <li>The prefix can be omitted (ex: Scheduled_workflow) will be found</li>
+     * <ul> Notes
+     *     <li>Searches on workflow names that omit {@code AI Agent -} are still found
+     *     (ex: AI Agent - Scheduled_workflow (or) Scheduled workflow are the same)
+     *     </li>
+     *     <li>Searches on workflow names that omit {@code AI_Agent___} are still found
+     *     (ex: AI_Agent___Scheduled_workflow (or) Scheduled workflow are the same)
+     *     </li>
+     *     <li>Searches on workflow names that omit the file extension are the same
+     *     (ex: Scheduled_workflow.json (or) AI_Agent___Scheduled_workflow.json (or) Scheduled_workflow are the same)
+     *     </li>
      *     <li>The prefix is case IN_SENSITIVE (AI Agent - Scheduled_workflow and ai agent - Scheduled_workflow) are the same</li>
-     *     <li>Naming convention after the prefix is currently case SENSITIVE (Schedule_workflow and scheduled_workflow) are not the same</li>
      * </ul>
      *
      * @param workFlowName n8n workflow name
@@ -39,8 +46,11 @@ public class ResourceLoaderService {
      * @return {@link String} workflow json
      */
     public String loadWorkflowJson(String workFlowName) {
-        if (StringUtils.startsWithIgnoreCase(workFlowName, AI_AGENT_RAW)) {
-            workFlowName = workFlowName.substring(AI_AGENT_RAW.length());
+        if (StringUtils.startsWithIgnoreCase(workFlowName, AI_AGENT_RAW) || StringUtils.startsWithIgnoreCase(workFlowName, AI_AGENT_FILE_PREFIX)) {
+            workFlowName = StringUtils.substring(workFlowName, AI_AGENT_RAW.length()); // raw and prefix are same length
+        }
+        if (StringUtils.endsWithIgnoreCase(workFlowName, JSON_FILE_EXT)) { // cut off .json
+            workFlowName = StringUtils.substringBeforeLast(workFlowName, JSON_FILE_EXT);
         }
         String path = Paths.get(WORKFLOW_DIR, AI_AGENT_FILE_PREFIX + workFlowName + JSON_FILE_EXT).toString();
         try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(path)) {
@@ -53,5 +63,37 @@ public class ResourceLoaderService {
             LOGGER.error("Cannot load workflow json: {}. {}", workFlowName, e.getMessage());
             return StringUtils.EMPTY;
         }
+    }
+
+    /**
+     * Get all workflow names that are prefixed with {@code AI_AGENT___} which is the
+     * current standard for AI workflow files. These files are truncated to only
+     * return the base name, removing the prefix and file extension.
+     *
+     * @return {@link List<String>} Names of all workflows that contain AI Agents
+     */
+    public List<String> getAiAgentWorkFlowNames() {
+        List<String> names = new ArrayList<>();
+        try {
+            Enumeration<URL> resources = getClass().getClassLoader().getResources(WORKFLOW_DIR);
+            for (URL url : Collections.list(resources)) {
+                File dir = new File(url.getFile());
+                if (dir.isDirectory()) {
+                    File[] files = dir.listFiles();
+                    if (files != null) {
+                        for (File file : files) {
+                            LOGGER.info("File Name: {}", file.getName());
+                            if (file.getName().startsWith(AI_AGENT_FILE_PREFIX)) {
+                                String name = StringUtils.substring(file.getName(), AI_AGENT_FILE_PREFIX.length());
+                                names.add(StringUtils.substringBeforeLast(name, JSON_FILE_EXT));
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            LOGGER.error("Cannot get ai workflow files from resource directory: {}. {}", WORKFLOW_DIR, e.getMessage());
+        }
+        return names;
     }
 }

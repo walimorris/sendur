@@ -149,6 +149,10 @@ public class N8NService {
         return false;
     }
 
+    public List<String> getWorkflowNamesWithAiAgents() {
+        return resourceLoaderService.getAiAgentWorkFlowNames();
+    }
+
     /**
      * Retrieve all current LLM prompts from a current workflow. Iterates on the workflow nodes,
      * finds all the agents and pulls the prompt from the agent. Adds the node ID to the Map as
