@@ -1,10 +1,13 @@
 import React from 'react';
 import LeadTable from "./LeadTable";
+import Navigation from "./Navigation";
 
 const Home = () => {
+
     return (
         <div>
-            <LeadTable />
+            <Navigation/>
+            <LeadTable/>
         </div>
     );
 }

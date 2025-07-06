@@ -19,6 +19,7 @@ public class MasterController {
      */
     @RequestMapping(value = {
             "/",
+            "/configuration",
             "/{path:^(?!api|oauth2|login|logout|built|favicon\\.ico$).*$}"
     })
     public String forward() {
