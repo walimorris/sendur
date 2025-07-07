@@ -84,6 +84,20 @@ const Configuration = () => {
         }
     }
 
+    async function handleSaveWorkflow(workflowAgent) {
+        try {
+            const res = await axios.post("/sendur/api/n8n/configuration/save-updated-prompt", workflowAgent, {
+                withCredentials: true,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            console.log("Workload saved: " + workflowAgent);
+        } catch (err) {
+            console.error("Failed to save workload: ", workflowAgent.name, err);
+        }
+    }
+
     return (
         <div>
             <Navigation/>
@@ -105,11 +119,11 @@ const Configuration = () => {
                 </Box>
 
                 <Stack spacing={3}>
-                    {prompts.map(agent => (
-                        <Card key={agent.id} variant="outlined" sx={{ borderRadius: 3 }}>
+                    {prompts.map(workflowAgent => (
+                        <Card key={workflowAgent.id} variant="outlined" sx={{ borderRadius: 3 }}>
                             <CardContent>
                                 <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
-                                    <Typography variant="h6">{agent.name}</Typography>
+                                    <Typography variant="h6">{workflowAgent.name}</Typography>
                                     <Chip label="AI Agent" color="primary" size="small" />
                                 </Stack>
 
@@ -121,8 +135,8 @@ const Configuration = () => {
                                     fullWidth
                                     multiline
                                     minRows={4}
-                                    value={agent.prompt}
-                                    onChange={(e) => handlePromptChange(agent.id, e.target.value)}
+                                    value={workflowAgent.prompt}
+                                    onChange={(e) => handlePromptChange(workflowAgent.id, e.target.value)}
                                 />
                             </CardContent>
 
@@ -130,7 +144,7 @@ const Configuration = () => {
                                 <Button
                                     variant="contained"
                                     color="primary"
-                                    onClick={() => console.log(`Save prompt for ${agent.name}`)}
+                                    onClick={() => handleSaveWorkflow(workflowAgent)}
                                 >
                                     Save
                                 </Button>

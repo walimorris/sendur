@@ -150,6 +150,48 @@ public class N8NService {
     }
 
     /**
+     * Get a workflow node from a workflow's name and the node id of the searched workflow node.
+     *
+     * @param workflowName {@link String} workflow name
+     * @param nodeId {@link UUID} workflow nodeId
+     *
+     * @return {@link Node}
+     */
+    public Node getWorkflowNodeFromNameAndNodeId(String workflowName, UUID nodeId) {
+        Workflow searchedWorkflow = loadWorkflow(workflowName);
+        if (searchedWorkflow == null) {
+            return null;
+        }
+        List<Node> nodes = searchedWorkflow.getNodes();
+        for (Node node : nodes) {
+            if (node.getID().equals(nodeId)) {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get a workflow's node given the search node id.
+     *
+     * @param nodeId {@link UUID} searched node id
+     *
+     * @return {@link Node} node with given node id
+     */
+    public Node getWorkFlowNodeFromNodeId(UUID nodeId) {
+        List<Workflow> workflows = loadAllWorkflows();
+        for (Workflow workflow : workflows) {
+            List<Node> currentNodes = workflow.getNodes();
+            for (Node node : currentNodes) {
+                if (StringUtils.equals(node.getID().toString(), nodeId.toString())) {
+                    return node;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Get All workflow names that contain AI Agents.
      *
      * @return {@link List<String>} workflow names
@@ -166,9 +208,8 @@ public class N8NService {
      * @param workflowName n8n workflow name to search
      *
      * @return {@link Map} containing Node ID and Prompt
-     * @throws IOException exception serializing workflow
      */
-    public Map<UUID, String> getLlmPromptsFromWorkflow(String workflowName) throws IOException {
+    public Map<UUID, String> getLlmPromptsFromWorkflow(String workflowName) {
         // iterate nodes and get all the llm nodes
         Workflow workflow = loadWorkflow(workflowName);
         if (workflow != null) {
@@ -196,13 +237,58 @@ public class N8NService {
      * @param workflowName n8n workflow name
      *
      * @return {@link Workflow} n8n workflow
-     * @throws IOException exception loading workflow from resource
      */
-    private Workflow loadWorkflow(String workflowName) throws IOException {
-        final String workflowJson = resourceLoaderService.loadWorkflowJson(workflowName);
-        if (!StringUtils.isEmpty(workflowJson)) {
-            return WorkflowConverter.fromJsonString(workflowJson);
+    public Workflow loadWorkflow(String workflowName) {
+        if (StringUtils.isEmpty(workflowName)) {
+            return null;
         }
-        return null;
+        try {
+            final String workflowJson = resourceLoaderService.loadWorkflowJson(workflowName);
+            if (!StringUtils.isEmpty(workflowJson)) {
+                return WorkflowConverter.fromJsonString(workflowJson);
+            }
+            return null;
+        } catch (IOException e) {
+            LOGGER.error("Error loading workflow {}: {}", workflowName, e.getMessage());
+            return null;
+        }
+    }
+
+    public boolean saveWorkflow(Workflow workflow) throws JsonProcessingException {
+        String workflowJson = WorkflowConverter.toJsonString(workflow);
+        LOGGER.info("Saving workflow {}: {}", workflow.getName(), workflowJson);
+        return true;
+    }
+
+    /**
+     * Remove node from workflow.
+     *
+     * @param workflow {@link Workflow} given workflow
+     * @param nodeId {@link UUID} node id
+     *
+     * @return boolean
+     */
+    public boolean removeWorkflowNode(Workflow workflow, UUID nodeId) {
+        for (Node node : workflow.getNodes()) {
+            if (node.getID().equals(nodeId)) {
+                workflow.getNodes().remove(node);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Load all possible n8n workflows.
+     *
+     * @return {@link List<Workflow>} list of workflows
+     */
+    private List<Workflow> loadAllWorkflows() {
+        List<Workflow> workflows = new ArrayList<>();
+        List<String> workflowNamesList = resourceLoaderService.getAllWorkFlowNames();
+        for (String workflowName : workflowNamesList) {
+            workflows.add(loadWorkflow(workflowName));
+        }
+        return workflows;
     }
 }

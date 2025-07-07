@@ -1,6 +1,9 @@
 package io.sendur.controllers;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import io.sendur.models.workflows.Node;
 import io.sendur.models.workflows.WorkFlowPrompt;
+import io.sendur.models.workflows.Workflow;
 import io.sendur.security.AuthService;
 import io.sendur.services.N8NService;
 import org.slf4j.Logger;
@@ -11,12 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,28 +41,22 @@ public class N8NConfigurationController {
     public ResponseEntity<List<WorkFlowPrompt>> receiveAllLeads(Authentication authentication, @RequestParam String workflowName) {
         if (!authService.isExplicitlyAuthorized(authentication)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .contentType(MediaType.APPLICATION_JSON)
                     .lastModified(Instant.now().toEpochMilli())
                     .build();
         }
-        try {
-            Map<UUID, String> prompts = n8nService.getLlmPromptsFromWorkflow(workflowName);
-            List<WorkFlowPrompt> workFlowPrompts = new ArrayList<>();
-            for (Map.Entry<UUID, String> entry : prompts.entrySet()) {
-                WorkFlowPrompt workFlowPrompt = new WorkFlowPrompt();
-                workFlowPrompt.setName(workflowName);
-                workFlowPrompt.setId(entry.getKey());
-                workFlowPrompt.setPrompt(entry.getValue());
-                workFlowPrompts.add(workFlowPrompt);
-            }
-            return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .lastModified(Instant.now().toEpochMilli())
-                    .body(workFlowPrompts);
-        } catch (IOException e) {
-            LOGGER.error("Error getting prompts from workflow {}. {}", workflowName, e.getMessage());
-            return ResponseEntity.badRequest().build();
+        Map<UUID, String> prompts = n8nService.getLlmPromptsFromWorkflow(workflowName);
+        List<WorkFlowPrompt> workFlowPrompts = new ArrayList<>();
+        for (Map.Entry<UUID, String> entry : prompts.entrySet()) {
+            WorkFlowPrompt workFlowPrompt = new WorkFlowPrompt();
+            workFlowPrompt.setName(workflowName);
+            workFlowPrompt.setId(entry.getKey());
+            workFlowPrompt.setPrompt(entry.getValue());
+            workFlowPrompts.add(workFlowPrompt);
         }
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .lastModified(Instant.now().toEpochMilli())
+                .body(workFlowPrompts);
     }
 
     @PreAuthorize("hasAuthority('OIDC_USER')")
@@ -71,7 +64,6 @@ public class N8NConfigurationController {
     public ResponseEntity<List<String>> aiGentWorkflowNames(Authentication authentication) {
         if (!authService.isExplicitlyAuthorized(authentication)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .contentType(MediaType.APPLICATION_JSON)
                     .lastModified(Instant.now().toEpochMilli())
                     .build();
         }
@@ -80,5 +72,44 @@ public class N8NConfigurationController {
                 .contentType(MediaType.APPLICATION_JSON)
                 .lastModified(Instant.now().toEpochMilli())
                 .body(workflowNames);
+    }
+
+    @PreAuthorize("hasAuthority('OIDC_USER')")
+    @PostMapping("/save-updated-prompt")
+    public ResponseEntity<?> postUpdatedPrompt(Authentication authentication, @RequestBody WorkFlowPrompt updatedWorkFlowPrompt) throws JsonProcessingException {
+        if (!authService.isExplicitlyAuthorized(authentication)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .lastModified(Instant.now().toEpochMilli())
+                    .build();
+        }
+        Workflow workflow = n8nService.loadWorkflow(updatedWorkFlowPrompt.getName());
+        Node workflowPromptNode = n8nService.getWorkflowNodeFromNameAndNodeId(updatedWorkFlowPrompt.getName(), updatedWorkFlowPrompt.getId());
+        if (workflowPromptNode == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .lastModified(Instant.now().toEpochMilli())
+                    .body("Workflow '" + updatedWorkFlowPrompt.getName() + "' not found");
+        }
+        // sanitize the prompt and update the workflow, here is where we need to update the json
+        // of the actual file and workflow
+        if (workflowPromptNode.getParameters().getText().equals(updatedWorkFlowPrompt.getPrompt())) {
+            LOGGER.info("Updated prompt is the same as the existing prompt in the workflow");
+        } else {
+            LOGGER.info("Updated prompt is not the same as the existing prompt in the workflow");
+        }
+        workflowPromptNode.getParameters().setText(updatedWorkFlowPrompt.getPrompt());
+
+        // may need to pass the updateWorkFlowPrompt that has file name format
+        boolean hasSavedWorkflow = n8nService.saveWorkflow(workflow);
+
+        if (!hasSavedWorkflow) {
+            return ResponseEntity.badRequest()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .lastModified(Instant.now().toEpochMilli())
+                    .body("Workflow '" + updatedWorkFlowPrompt.getName() + "' not successfully saved");
+        }
+        return ResponseEntity.ok()
+                .lastModified(Instant.now().toEpochMilli())
+                .build();
     }
 }
