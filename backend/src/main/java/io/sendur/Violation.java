@@ -1,0 +1,8 @@
+package io.sendur;
+
+public enum Violation {
+    PROMPT_TOO_LONG,
+    PROMPT_CONTAINS_BLOCKED_WORDS,
+    PROMPT_INJECTION_DETECTED,
+    PROMPT_FLAGGED_BY_OPEN_AI
+}

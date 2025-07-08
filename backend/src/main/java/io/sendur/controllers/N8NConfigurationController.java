@@ -1,10 +1,12 @@
 package io.sendur.controllers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.sendur.Violation;
 import io.sendur.models.workflows.Node;
 import io.sendur.models.workflows.WorkFlowPrompt;
 import io.sendur.models.workflows.Workflow;
 import io.sendur.security.AuthService;
+import io.sendur.services.AiGuardRailsService;
 import io.sendur.services.N8NService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,11 +31,13 @@ public class N8NConfigurationController {
 
     private final N8NService n8nService;
     private final AuthService authService;
+    private final AiGuardRailsService aiGuardRailsService;
 
     @Autowired
-    public N8NConfigurationController(final AuthService authservice, final N8NService n8nService) {
+    public N8NConfigurationController(final AuthService authservice, final N8NService n8nService, AiGuardRailsService aiGuardRailsService) {
         this.n8nService = n8nService;
         this.authService = authservice;
+        this.aiGuardRailsService = aiGuardRailsService;
     }
 
     @PreAuthorize("hasAuthority('OIDC_USER')")
@@ -92,10 +96,21 @@ public class N8NConfigurationController {
         }
         // sanitize the prompt and update the workflow, here is where we need to update the json
         // of the actual file and workflow
-        if (workflowPromptNode.getParameters().getText().equals(updatedWorkFlowPrompt.getPrompt())) {
-            LOGGER.info("Updated prompt is the same as the existing prompt in the workflow");
-        } else {
-            LOGGER.info("Updated prompt is not the same as the existing prompt in the workflow");
+        List<Violation> promptViolations = aiGuardRailsService.validatePrompt(updatedWorkFlowPrompt.getPrompt());
+        if (!promptViolations.isEmpty()) {
+            StringBuilder violationBuilder = new StringBuilder();
+            violationBuilder.append("violations: ");
+            for (int i = 0; i < promptViolations.size(); i++) {
+                if (i < promptViolations.size() - 1) {
+                    violationBuilder.append(promptViolations.get(i).toString()).append(", ");
+                } else {
+                    violationBuilder.append(promptViolations.get(i).toString());
+                }
+            }
+            return ResponseEntity.badRequest()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .lastModified(Instant.now().toEpochMilli())
+                    .body(violationBuilder.toString());
         }
         workflowPromptNode.getParameters().setText(updatedWorkFlowPrompt.getPrompt());
 
