@@ -1,7 +1,6 @@
 package io.sendur.controllers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import io.sendur.Violation;
 import io.sendur.models.workflows.Node;
 import io.sendur.models.workflows.WorkFlowPrompt;
 import io.sendur.models.workflows.Workflow;
@@ -96,21 +95,12 @@ public class N8NConfigurationController {
         }
         // sanitize the prompt and update the workflow, here is where we need to update the json
         // of the actual file and workflow
-        List<Violation> promptViolations = aiGuardRailsService.validatePrompt(updatedWorkFlowPrompt.getPrompt());
-        if (!promptViolations.isEmpty()) {
-            StringBuilder violationBuilder = new StringBuilder();
-            violationBuilder.append("violations: ");
-            for (int i = 0; i < promptViolations.size(); i++) {
-                if (i < promptViolations.size() - 1) {
-                    violationBuilder.append(promptViolations.get(i).toString()).append(", ");
-                } else {
-                    violationBuilder.append(promptViolations.get(i).toString());
-                }
-            }
+        Map<String, String> violations = aiGuardRailsService.validatePrompt(updatedWorkFlowPrompt.getPrompt());
+        if (!violations.isEmpty()) {
             return ResponseEntity.badRequest()
                     .contentType(MediaType.APPLICATION_JSON)
                     .lastModified(Instant.now().toEpochMilli())
-                    .body(violationBuilder.toString());
+                    .body(violations);
         }
         workflowPromptNode.getParameters().setText(updatedWorkFlowPrompt.getPrompt());
 
