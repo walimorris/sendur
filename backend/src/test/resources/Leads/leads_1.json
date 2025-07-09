@@ -1,0 +1,12 @@
+[
+  {
+    "_id": "64b1f8b7c9d6f02f11111111",
+    "businessName": "Acme Corp",
+    "phone": "123-456-7890",
+    "email": "info@acme.com",
+    "city": "New York",
+    "website": "https://acme.com",
+    "emailDraft": "Hello from Acme",
+    "haveContacted": false
+  }
+]

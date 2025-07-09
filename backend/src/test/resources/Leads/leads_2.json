@@ -1,0 +1,22 @@
+[
+  {
+    "_id": "64b1f8b7c9d6f02f44444444",
+    "businessName": "Nimbus Dynamics",
+    "phone": "212-555-0198",
+    "email": "contact@nimbusdynamics.io",
+    "city": "Boston",
+    "website": "https://nimbusdynamics.io",
+    "emailDraft": "We offer cloud-native business automation solutions.",
+    "haveContacted": true
+  },
+  {
+    "_id": "64b1f8b7c9d6f02f55555555",
+    "businessName": "Orion Creative",
+    "phone": "310-777-2626",
+    "email": "hello@orioncreative.co",
+    "city": "Los Angeles",
+    "website": "https://orioncreative.co",
+    "emailDraft": "Let’s collaborate on design and brand transformation.",
+    "haveContacted": false
+  }
+]

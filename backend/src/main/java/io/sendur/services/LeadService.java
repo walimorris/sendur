@@ -84,6 +84,7 @@ public class LeadService {
                 .map(Lead::getBusinessName)
                 .toList();
 
+        // todo: test duplicates in unverifiedLeads as well
         List<Lead> verifiedLeads = new ArrayList<>();
         for (Lead unverifiedLead : unverifiedLeads) {
             String businessName = unverifiedLead.getBusinessName().trim();

@@ -1,0 +1,36 @@
+package io.sendur.factories;
+
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import org.bson.types.ObjectId;
+
+import java.io.IOException;
+
+public class ObjectMapperFactory {
+
+    private ObjectMapperFactory() {
+        // illegal instantiation
+    }
+
+    public static ObjectMapper create() {
+        ObjectMapper mapper = new ObjectMapper();
+
+        SimpleModule module = new SimpleModule();
+        module.addDeserializer(ObjectId.class, new JsonDeserializer<>() {
+            @Override
+            public ObjectId deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+                return new ObjectId(p.getValueAsString());
+            }
+        });
+        module.addSerializer(ObjectId.class, new JsonSerializer<ObjectId>() {
+            @Override
+            public void serialize(ObjectId value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+                gen.writeString(value.toHexString());
+            }
+        });
+        mapper.registerModule(module);
+        return mapper;
+    }
+}
