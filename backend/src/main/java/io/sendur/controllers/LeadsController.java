@@ -5,8 +5,8 @@ import io.sendur.models.leads.Lead;
 import io.sendur.models.leads.LeadRequest;
 import io.sendur.models.leads.WebhookMessageId;
 import io.sendur.security.AuthService;
-import io.sendur.services.LeadService;
-import io.sendur.services.N8NService;
+import io.sendur.services.impl.LeadService;
+import io.sendur.services.impl.N8NService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -187,7 +187,7 @@ public class LeadsController {
      *
      * @return {@link ResponseEntity}
      */
-    @PreAuthorize("hasAuthority('OIDC_USER')")  // TODO: update this to admin group in cognito and create an auth converter
+    @PreAuthorize("hasAuthority('OIDC_USER')")
     @PostMapping("/approve-lead-emails")
     public ResponseEntity<?> approveLeadEmails(@RequestBody List<Lead> leads, Authentication authentication) {
         if (!authService.isExplicitlyAuthorized(authentication)) {
@@ -198,7 +198,7 @@ public class LeadsController {
         }
         LOGGER.info("Sending approved leads to N8N 'Send Approve Emails Webhook'");
         List<Lead> validatedLeads = reviewAndValidateLeadRecords(leads);
-        ApprovedLeadsWebhookResult sentApprovedLeadsResponse = n8NService.sendApprovedEmailsToLeads(validatedLeads);
+        ApprovedLeadsWebhookResult sentApprovedLeadsResponse = n8NService.sendEmailsToLeads(validatedLeads);
         if (sentApprovedLeadsResponse != null) {
             final int statusCode = sentApprovedLeadsResponse.statusCode();
             final List<WebhookMessageId> webhookMessageIdList = sentApprovedLeadsResponse.webhookMessageIds();

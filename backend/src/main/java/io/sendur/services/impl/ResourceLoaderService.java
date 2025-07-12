@@ -1,4 +1,4 @@
-package io.sendur.services;
+package io.sendur.services.impl;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;

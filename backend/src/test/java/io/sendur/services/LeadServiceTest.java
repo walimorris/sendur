@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import io.sendur.TestUtils;
 import io.sendur.models.leads.Lead;
 import io.sendur.repositories.LeadRepository;
+import io.sendur.services.impl.LeadService;
 import nl.altindag.log.LogCaptor;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;

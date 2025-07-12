@@ -1,4 +1,4 @@
-package io.sendur.services;
+package io.sendur.services.impl;
 
 import io.sendur.Violation;
 import io.sendur.utils.PromptUtils;
