@@ -23,7 +23,7 @@ public class SiteApplication {
 
 	@PostConstruct
 	public void init() {
-		LOGGER.info("Webhook: {}", n8nProperties.getApprovedEmailsWebhook());
-		LOGGER.info("Timeout: {}", n8nProperties.getTimeout());
+		LOGGER.info("N8N Webhook URL: {}", n8nProperties.getApprovedEmailsWebhook());
+		LOGGER.info("N8N Requests Timeout: {}", n8nProperties.getTimeout());
 	}
 }

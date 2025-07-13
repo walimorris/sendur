@@ -17,6 +17,7 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
 import org.slf4j.Logger;
@@ -42,6 +43,7 @@ public class N8NGatewayService implements N8NGateway {
     private static final String USER_AGENT = "User-Agent";
     private static final String APPLICATION_JSON = "application/json";
     private static final String TEXT_PLAIN = "text/plain";
+    private static final String SERVER_ERROR = "Internal Server Error";
     private static final String APP_NAME = "Sendur";
 
     @Autowired
@@ -72,7 +74,7 @@ public class N8NGatewayService implements N8NGateway {
     public ClassicHttpResponse postN8NWebhook(String webhook, long timeout, Object object) throws JsonProcessingException {
         String json = new ObjectMapper().writeValueAsString(object);
         RequestConfig config = RequestConfig.custom()
-                .setResponseTimeout(timeout, TimeUnit.SECONDS)
+                .setResponseTimeout(timeout, TimeUnit.MILLISECONDS)
                 .build();
         try (CloseableHttpClient client = HttpClients.custom()
                 .setDefaultRequestConfig(config)
@@ -88,14 +90,14 @@ public class N8NGatewayService implements N8NGateway {
         } catch (IOException | IllegalStateException e) {
             LOGGER.error("Failed to send POST request to N8N webhook {}: {}", webhook, e.getMessage());
         }
-        return new BasicClassicHttpResponse(500, "Internal Server Error");
+        return new BasicClassicHttpResponse(500, SERVER_ERROR);
     }
 
     @Override
     public ApprovedLeadsWebhookResult sendApprovedEmailsToLeads(LeadRepository leadRepository, List<Lead> leads) {
         try (ClassicHttpResponse response = hitN8NApprovedEmailWebhook(leads)) {
             int statusCode = response.getCode();
-            String content = getEntityContentOrDefault(response.getEntity(), "");
+            String content = getEntityContentOrEmpty(response.getEntity());
             ObjectMapper mapper = new ObjectMapper();
             List<WebhookMessageId> webhookMessageIdList;
             if (StringUtils.isEmpty(content)) {
@@ -127,15 +129,24 @@ public class N8NGatewayService implements N8NGateway {
                 n8NConfigurationProperties.getTimeout(), leads);
     }
 
-    public String getEntityContentOrDefault(HttpEntity entity, String defaultContent) {
+    /**
+     * {@link ClassicHttpResponse} returns an {@link HttpEntity} wrapped in an {@code HttpEntityContainer}.
+     * This method returns the entity's content utilizing the {@link EntityUtils}. If the Entity content is
+     * empty (i.e. NULL) a default empty string is returned.
+     *
+     * @param entity {@link HttpEntity}
+     *
+     * @return {@link String} entity content or empty string if null
+     */
+    private String getEntityContentOrEmpty(HttpEntity entity) {
         if (ObjectUtils.isEmpty(entity)) {
-            return defaultContent;
+            return StringUtils.EMPTY;
         }
         try {
-            return entity.getContent().toString();
-        } catch (IOException e) {
-            LOGGER.error("Error fetching Entity Content, returning default: {}", e.getMessage());
-            return defaultContent;
+            return EntityUtils.toString(entity);
+        } catch (Exception e) {
+            LOGGER.error("Error fetching Entity Content, returning default EMPTY STRING: {}", e.getMessage());
+            return StringUtils.EMPTY;
         }
     }
 }
