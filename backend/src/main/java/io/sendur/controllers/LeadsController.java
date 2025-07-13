@@ -206,6 +206,7 @@ public class LeadsController {
             if (statusCode == 200) {
                 LOGGER.info("Webhook call successful. Content: {}", webhookMessageIdList);
                 return ResponseEntity.ok().body(webhookMessageIdList);
+                // add 500 response here
             } else {
                 LOGGER.warn("Webhook call not exactly success. status code: {}", statusCode);
                 return ResponseEntity.status(statusCode).body(webhookMessageIdList);

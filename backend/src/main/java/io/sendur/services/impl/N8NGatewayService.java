@@ -9,20 +9,26 @@ import io.sendur.models.leads.Lead;
 import io.sendur.models.leads.WebhookMessageId;
 import io.sendur.repositories.LeadRepository;
 import io.sendur.services.N8NGateway;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.ClassicHttpResponse;
-import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.io.entity.StringEntity;
+import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketAddress;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -35,6 +41,7 @@ public class N8NGatewayService implements N8NGateway {
     private static final String CONTENT_TYPE = "Content-Type";
     private static final String USER_AGENT = "User-Agent";
     private static final String APPLICATION_JSON = "application/json";
+    private static final String TEXT_PLAIN = "text/plain";
     private static final String APP_NAME = "Sendur";
 
     @Autowired
@@ -46,7 +53,9 @@ public class N8NGatewayService implements N8NGateway {
     public boolean n8nSocketAccepting() throws IllegalStateException {
         final String host = n8NConfigurationProperties.getHost();
         final int port = n8NConfigurationProperties.getPort();
-        try (Socket socket = new Socket(host, port)) {
+        try (Socket socket = new Socket()) {
+            SocketAddress address = new InetSocketAddress(host, port);
+            socket.connect(address, (int) n8NConfigurationProperties.getTimeout());
             if (socket.isConnected()) {
                 LOGGER.info("n8n HOST '{}' on PORT '{}' is open and accepting", host, port);
                 return true;
@@ -79,16 +88,21 @@ public class N8NGatewayService implements N8NGateway {
         } catch (IOException | IllegalStateException e) {
             LOGGER.error("Failed to send POST request to N8N webhook {}: {}", webhook, e.getMessage());
         }
-        return null;
+        return new BasicClassicHttpResponse(500, "Internal Server Error");
     }
 
     @Override
     public ApprovedLeadsWebhookResult sendApprovedEmailsToLeads(LeadRepository leadRepository, List<Lead> leads) {
         try (ClassicHttpResponse response = hitN8NApprovedEmailWebhook(leads)) {
             int statusCode = response.getCode();
-            String content = EntityUtils.toString(response.getEntity());
+            String content = getEntityContentOrDefault(response.getEntity(), "");
             ObjectMapper mapper = new ObjectMapper();
-            List<WebhookMessageId> webhookMessageIdList = mapper.readValue(content, new TypeReference<>() {});
+            List<WebhookMessageId> webhookMessageIdList;
+            if (StringUtils.isEmpty(content)) {
+                webhookMessageIdList = new ArrayList<>();
+            } else {
+                webhookMessageIdList = mapper.readValue(content, new TypeReference<>() {});
+            }
             if (statusCode == 200) {
                 leadRepository.saveAll(leads);
             }
@@ -111,5 +125,17 @@ public class N8NGatewayService implements N8NGateway {
     private ClassicHttpResponse hitN8NApprovedEmailWebhook(List<Lead> leads) throws JsonProcessingException {
         return postN8NWebhook(n8NConfigurationProperties.getApprovedEmailsWebhook(),
                 n8NConfigurationProperties.getTimeout(), leads);
+    }
+
+    public String getEntityContentOrDefault(HttpEntity entity, String defaultContent) {
+        if (ObjectUtils.isEmpty(entity)) {
+            return defaultContent;
+        }
+        try {
+            return entity.getContent().toString();
+        } catch (IOException e) {
+            LOGGER.error("Error fetching Entity Content, returning default: {}", e.getMessage());
+            return defaultContent;
+        }
     }
 }
