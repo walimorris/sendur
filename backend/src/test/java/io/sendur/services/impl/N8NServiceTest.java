@@ -6,8 +6,11 @@ import io.sendur.models.leads.ApprovedLeadsWebhookResult;
 import io.sendur.models.leads.Lead;
 import io.sendur.models.leads.WebhookMessageId;
 import io.sendur.models.workflows.Node;
+import io.sendur.models.workflows.Workflow;
+import io.sendur.models.workflows.WorkflowConverter;
 import io.sendur.repositories.LeadRepository;
 import nl.altindag.log.LogCaptor;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -17,12 +20,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
-import java.util.UUID;
+import java.io.IOException;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.util.AssertionErrors.assertNull;
+import static org.springframework.test.util.AssertionErrors.*;
 
 @ExtendWith(MockitoExtension.class)
 class N8NServiceTest {
@@ -32,19 +35,28 @@ class N8NServiceTest {
 
     private static final String MINIMAL_WORKFLOW_RESOURCE_0 = "workflows/workflow_0.json";
     private static final String MINIMAL_WORKFLOW_RESOURCE_1 = "workflows/workflow_1.json";
+    private static final String AI_WORKFLOW_RESOURCE_0 = "workflows/ai_workflow_0.json";
 
     private static final String MINIMAL_WORKFLOW_NAME_0 = "Minimal Test Workflow 0";
     private static final String MINIMAL_WORKFLOW_NAME_1 = "Minimal Test Workflow 1";
+    private static final String AI_WORKFLOW_NODE_NAME = "Test AI Node 0";
+    private static final String UNKNOWN_WORKFLOW_NAME = "Unknown Workflow";
 
     private static final String MINIMAL_WORKFLOW_NODE_0_NAME = "Test_Node_0";
     private static final String MINIMAL_WORKFLOW_NODE_1_NAME = "Test_Node_1";
+    private static final String AI_WORKFLOW_NODE_0_NAME = "AI Agent 0";
+
     private static final UUID MINIMAL_WORKFLOW_NODE_0_UUID;
     private static final UUID MINIMAL_WORKFLOW_NODE_1_UUID;
+    private static final UUID AI_WORKFLOW_NODE_0_UUID;
     private static final UUID UNKNOWN_WORKFLOW_NODE_UUID;
+
+    private static final String AI_WORKFLOW_NODE_0_PROMPT = "Your task is to find 50 small mom-and-pop service businesses...";
 
     static {
         MINIMAL_WORKFLOW_NODE_0_UUID = UUID.fromString("123e4567-e89b-12d3-a456-426614174000");
         MINIMAL_WORKFLOW_NODE_1_UUID = UUID.fromString("123e4567-e89b-12d3-a456-426614174001");
+        AI_WORKFLOW_NODE_0_UUID = UUID.fromString("12345678-1234-1234-1234-123456789abc");
         UNKNOWN_WORKFLOW_NODE_UUID = UUID.fromString("123e4567-e89b-12d3-a456-426614174123");
     }
 
@@ -154,22 +166,82 @@ class N8NServiceTest {
     }
 
     @Test
+    void getLlmPromptsFromWorkflow() {
+        String aiWorkflowJson = TestUtils.getStringContentFromResource(AI_WORKFLOW_RESOURCE_0);
+        when(resourceLoaderService.loadWorkflowJson(AI_WORKFLOW_NODE_NAME)).thenReturn(aiWorkflowJson);
+        Map<UUID, String> prompts = n8NService.getLlmPromptsFromWorkflow(AI_WORKFLOW_NODE_NAME);
+
+        Set<String> resultsPrompts = new HashSet<>();
+        Set<UUID> uuids = prompts.keySet();
+        for (UUID uuid : uuids) {
+            resultsPrompts.add(prompts.get(uuid));
+        }
+        assertNotNull("Map contains LLM Node's UUID and prompt.", prompts);
+        assertTrue("Map contains correct UUID for LLM Node.", uuids.contains(AI_WORKFLOW_NODE_0_UUID));
+        assertTrue("Map contains correct prompt for LLM Node.", resultsPrompts.contains(AI_WORKFLOW_NODE_0_PROMPT));
+        verify(resourceLoaderService, times(1)).loadWorkflowJson(anyString());
+    }
+
+    @Test
+    void getLlmPromptFromWorkflowNoLlmNodes() {
+        String workflowJson = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        when(resourceLoaderService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_1)).thenReturn(workflowJson);
+        Map<UUID, String> prompts1 = n8NService.getLlmPromptsFromWorkflow(MINIMAL_WORKFLOW_NAME_1);
+        Map<UUID, String> prompts2 = n8NService.getLlmPromptsFromWorkflow(StringUtils.EMPTY);
+        assertEquals(0, prompts1.size());
+        assertEquals(0, prompts2.size());
+        verify(resourceLoaderService, times(1)).loadWorkflowJson(anyString());
+    }
+
+    @Test
+    void removeWorkflowNode() throws IOException {
+        String workflowJson = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        Workflow workflow = WorkflowConverter.fromJsonString(workflowJson);
+        boolean wasRemoved1 = n8NService.removeWorkflowNode(workflow, MINIMAL_WORKFLOW_NODE_1_UUID);
+        boolean wasRemoved2 = n8NService.removeWorkflowNode(workflow, UNKNOWN_WORKFLOW_NODE_UUID);
+        boolean wasRemoved3 = n8NService.removeWorkflowNode(workflow, null);
+
+        // it would probably make sense to save the workflow after node deletion and validate node is indeed removed
+        assertTrue("WorkflowNode was removed as intended.", wasRemoved1);
+        assertFalse("WorkflowNode was not removed as intended, node not found in workflow.", wasRemoved2);
+        assertFalse("WorkflowNode not removed as intended, UUID is null.", wasRemoved3);
+    }
+
+    @Test
+    void loadWorkflow() throws IOException {
+        String workflowJson1 = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        Workflow expectedWorkflow1 = WorkflowConverter.fromJsonString(workflowJson1);
+        when(resourceLoaderService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_1)).thenReturn(workflowJson1);
+
+        Workflow workflowResult1 = n8NService.loadWorkflow(MINIMAL_WORKFLOW_NAME_1);
+        assertEquals(expectedWorkflow1.getName(), workflowResult1.getName());
+        assertEquals(expectedWorkflow1.getID(), workflowResult1.getID());
+        assertEquals(expectedWorkflow1.getNodes().size(), workflowResult1.getNodes().size());
+        verify(resourceLoaderService, times(1)).loadWorkflowJson(anyString());
+    }
+
+    @Test
+    void loadWorkflowUnknown() {
+        when(resourceLoaderService.loadWorkflowJson(UNKNOWN_WORKFLOW_NAME)).thenReturn(null);
+
+        Workflow workflowResult = n8NService.loadWorkflow(UNKNOWN_WORKFLOW_NAME);
+        assertNull("Workflow null as intended, resource unknown/not found.", workflowResult);
+        verify(resourceLoaderService, times(1)).loadWorkflowJson(anyString());
+    }
+
+    @Test
+    void loadWorkflowEmpty() {
+        Workflow workflow = n8NService.loadWorkflow(StringUtils.EMPTY);
+
+        assertNull("Workflow null as intended with empty workflow name.", workflow);
+        verify(resourceLoaderService, times(0)).loadWorkflowJson(anyString());
+    }
+
+    @Test
     void getWorkflowNamesWithAiAgents() {
     }
 
     @Test
-    void getLlmPromptsFromWorkflow() {
-    }
-
-    @Test
-    void loadWorkflow() {
-    }
-
-    @Test
     void saveWorkflow() {
-    }
-
-    @Test
-    void removeWorkflowNode() {
     }
 }

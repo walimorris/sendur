@@ -107,23 +107,25 @@ public class N8NService {
      * @return {@link Map} containing Node ID and Prompt
      */
     public Map<UUID, String> getLlmPromptsFromWorkflow(String workflowName) {
-        // iterate nodes and get all the llm nodes
-        Workflow workflow = loadWorkflow(workflowName);
-        if (workflow != null) {
-            List<Node> nodes = workflow.getNodes();
-            Map<UUID, String> prompts = new HashMap<>();
-            for (Node node : nodes) {
-                if (node.getType().equals(LLM_NODE)) {
-                    // get the parameter that contain the prompt
-                    Parameters parameters = node.getParameters();
-                    if (StringUtils.isEmpty(parameters.getText())) {
-                        prompts.put(node.getID(), "empty prompt - review configuration");
-                    } else {
-                        prompts.put(node.getID(), parameters.getText());
+        if (StringUtils.isNotEmpty(workflowName)) {
+            // iterate nodes and get all the llm nodes
+            Workflow workflow = loadWorkflow(workflowName);
+            if (workflow != null) {
+                List<Node> nodes = workflow.getNodes();
+                Map<UUID, String> prompts = new HashMap<>();
+                for (Node node : nodes) {
+                    if (node.getType().equals(LLM_NODE)) {
+                        // get the parameter that contain the prompt
+                        Parameters parameters = node.getParameters();
+                        if (StringUtils.isEmpty(parameters.getText())) {
+                            prompts.put(node.getID(), "empty prompt - review configuration");
+                        } else {
+                            prompts.put(node.getID(), parameters.getText());
+                        }
                     }
                 }
+                return prompts;
             }
-            return prompts;
         }
         return new HashMap<>();
     }
@@ -166,10 +168,12 @@ public class N8NService {
      * @return boolean
      */
     public boolean removeWorkflowNode(Workflow workflow, UUID nodeId) {
-        for (Node node : workflow.getNodes()) {
-            if (node.getID().equals(nodeId)) {
-                workflow.getNodes().remove(node);
-                return true;
+        if (ObjectUtils.anyNotNull(workflow, nodeId)) {
+            for (Node node : workflow.getNodes()) {
+                if (node.getID().equals(nodeId)) {
+                    workflow.getNodes().remove(node);
+                    return true;
+                }
             }
         }
         return false;

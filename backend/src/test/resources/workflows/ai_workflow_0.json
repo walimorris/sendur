@@ -1,0 +1,29 @@
+{
+  "name": "Test AI Node 0",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Your task is to find 50 small mom-and-pop service businesses..."
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "id": "12345678-1234-1234-1234-123456789abc",
+      "name": "AI Agent 0"
+    },
+    {
+      "parameters": {
+        "url": "https://example.com",
+        "method": "GET"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [200, 0],
+      "id": "abcdefab-cdef-abcd-efab-cdefabcdef12",
+      "name": "Simple HTTP Request"
+    }
+  ],
+  "connections": {},
+  "active": false
+}
