@@ -1,5 +1,5 @@
 {
-  "name": "Minimal Test Workflow 0",
+  "name": "Minimal Test Workflow 1",
   "nodes": [
     {
       "parameters": {
@@ -9,8 +9,8 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [0, 0],
-      "id": "123e4567-e89b-12d3-a456-426614174000",
-      "name": "Test_Node_0"
+      "id": "123e4567-e89b-12d3-a456-426614174001",
+      "name": "Test_Node_1"
     },
     {
       "parameters": {
@@ -24,7 +24,7 @@
     }
   ],
   "connections": {
-    "Test_Node_0": {
+    "Test_Node_1": {
       "main": [
         [
           {

@@ -74,12 +74,14 @@ public class N8NService {
      * @return {@link Node} node with given node id
      */
     public Node getWorkFlowNodeFromNodeId(UUID nodeId) {
-        List<Workflow> workflows = loadAllWorkflows();
-        for (Workflow workflow : workflows) {
-            List<Node> currentNodes = workflow.getNodes();
-            for (Node node : currentNodes) {
-                if (StringUtils.equals(node.getID().toString(), nodeId.toString())) {
-                    return node;
+        if (ObjectUtils.isNotEmpty(nodeId)) {
+            List<Workflow> workflows = loadAllWorkflows();
+            for (Workflow workflow : workflows) {
+                List<Node> currentNodes = workflow.getNodes();
+                for (Node node : currentNodes) {
+                    if (StringUtils.equals(node.getID().toString(), nodeId.toString())) {
+                        return node;
+                    }
                 }
             }
         }
