@@ -8,6 +8,7 @@ import io.sendur.models.workflows.Parameters;
 import io.sendur.models.workflows.Workflow;
 import io.sendur.models.workflows.WorkflowConverter;
 import io.sendur.repositories.LeadRepository;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,14 +51,16 @@ public class N8NService {
      * @return {@link Node}
      */
     public Node getWorkflowNodeFromNameAndNodeId(String workflowName, UUID nodeId) {
-        Workflow searchedWorkflow = loadWorkflow(workflowName);
-        if (searchedWorkflow == null) {
-            return null;
-        }
-        List<Node> nodes = searchedWorkflow.getNodes();
-        for (Node node : nodes) {
-            if (node.getID().equals(nodeId)) {
-                return node;
+        if (ObjectUtils.allNotNull(workflowName, nodeId)) {
+            Workflow searchedWorkflow = loadWorkflow(workflowName);
+            if (searchedWorkflow == null) {
+                return null;
+            }
+            List<Node> nodes = searchedWorkflow.getNodes();
+            for (Node node : nodes) {
+                if (node.getID().equals(nodeId)) {
+                    return node;
+                }
             }
         }
         return null;

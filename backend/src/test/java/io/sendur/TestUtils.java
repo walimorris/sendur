@@ -5,8 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.sendur.factories.ObjectMapperFactory;
 import org.apache.commons.lang3.ObjectUtils;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 
 /**
  * {@code TestUtils} provides a set of convenient utility methods to process various test cases.
@@ -46,6 +48,33 @@ public class TestUtils {
         } catch (IOException e) {
             throw new RuntimeException("Failed to read stream from resource path: " + resourcePath, e);
         }
+    }
+
+    /**
+     * Gets the content from the given resource as a string. This utility is helpful for common {@code Sendur}
+     * utilities that read in resources, but can not be used in the test context. Instead, the common goal of
+     * receiving string content from a resource can be fulfilled with this method.
+     *
+     * @param resourcePath resource path (coming from test resource directory)
+     *
+     * @return {@link String} content
+     */
+    public static String getStringContentFromResource(String resourcePath) {
+        InputStream inputStream = getResourceInputStream(resourcePath);
+        if (ObjectUtils.isEmpty(inputStream)) {
+            throw new IllegalArgumentException("InputStream is null, check resource is not empty: " + resourcePath);
+        }
+        StringBuilder jsonBuilder = new StringBuilder();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+        try {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                jsonBuilder.append(line);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read json string: " + e.getMessage());
+        }
+        return jsonBuilder.toString();
     }
 
     /**

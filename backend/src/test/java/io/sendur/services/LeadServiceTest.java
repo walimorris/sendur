@@ -25,9 +25,9 @@ import static org.mockito.Mockito.*;
 class LeadServiceTest {
     private static LogCaptor logCaptor;
 
-    private static final String PERSISTED_LEADS_RESOURCE = "Leads/leads_0.json";
-    private static final String UNVERIFIED_LEADS_RESOURCE_1 = "Leads/leads_1.json";
-    private static final String UNVERIFIED_LEADS_RESOURCE_2 = "Leads/leads_2.json";
+    private static final String PERSISTED_LEADS_RESOURCE = "leads/leads_0.json";
+    private static final String UNVERIFIED_LEADS_RESOURCE_1 = "leads/leads_1.json";
+    private static final String UNVERIFIED_LEADS_RESOURCE_2 = "leads/leads_2.json";
 
     @BeforeAll
     public static void setupLogCaptor() {
