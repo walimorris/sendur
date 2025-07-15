@@ -1,5 +1,6 @@
 *.properties
 node_modules/
+aws-config
 node
 .idea/
 .vscode/
