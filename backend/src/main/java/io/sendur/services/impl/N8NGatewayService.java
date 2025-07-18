@@ -1,5 +1,6 @@
 package io.sendur.services.impl;
 
+import com.amazonaws.services.s3.internal.InputSubstream;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,10 +26,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -104,7 +109,8 @@ public class N8NGatewayService implements N8NGateway {
             if (StringUtils.isEmpty(content)) {
                 webhookMessageIdList = new ArrayList<>();
             } else {
-                webhookMessageIdList = mapper.readValue(content, new TypeReference<>() {});
+                InputStream webhookMessageIdListInputStream = getInputStreamFromContent(content);
+                webhookMessageIdList = mapper.readValue(webhookMessageIdListInputStream, new TypeReference<>() {});
             }
             if (statusCode == 200) {
                 leadRepository.saveAll(leads);
@@ -149,5 +155,9 @@ public class N8NGatewayService implements N8NGateway {
             LOGGER.error("Error fetching Entity Content, returning default EMPTY STRING: {}", e.getMessage());
             return StringUtils.EMPTY;
         }
+    }
+
+    private InputStream getInputStreamFromContent(String content) {
+        return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
     }
 }
