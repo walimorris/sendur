@@ -53,6 +53,14 @@ class N8NServiceTest {
 
     private static final String AI_WORKFLOW_NODE_0_PROMPT = "Your task is to find 50 small mom-and-pop service businesses...";
 
+    private static final String AI_WORKFLOW_1 = "AI_Agent___Scheduled_Lead_Contact_Updater.json";
+    private static final String AI_WORKFLOW_2 = "AI_Agent___Scheduled_Lead_Generator.json";
+    private static final String AI_WORKFLOW_3 = "AI_Agent___Send_Approved_Emails_Webhook.json";
+    private static final String AI_WORKFLOW_4 = "aI_aGENT___Schedule_Lead_Follow_Up";
+
+    private static final String TASK_WORKFLOW_1 = "TASK___Load_Sent_Emails";
+    private static final String TASK_WORKFLOW_2 = "TASK___Load_Failed_Emails";
+
     static {
         MINIMAL_WORKFLOW_NODE_0_UUID = UUID.fromString("123e4567-e89b-12d3-a456-426614174000");
         MINIMAL_WORKFLOW_NODE_1_UUID = UUID.fromString("123e4567-e89b-12d3-a456-426614174001");
@@ -204,7 +212,7 @@ class N8NServiceTest {
         // it would probably make sense to save the workflow after node deletion and validate node is indeed removed
         assertTrue("WorkflowNode was removed as intended.", wasRemoved1);
         assertFalse("WorkflowNode was not removed as intended, node not found in workflow.", wasRemoved2);
-        assertFalse("WorkflowNode not removed as intended, UUID is null.", wasRemoved3);
+        assertFalse("WorkflowNode was not removed as intended, UUID is null.", wasRemoved3);
     }
 
     @Test
@@ -237,9 +245,23 @@ class N8NServiceTest {
         verify(resourceLoaderService, times(0)).loadWorkflowJson(anyString());
     }
 
-    @Test
-    void getWorkflowNamesWithAiAgents() {
-    }
+//    @Test
+//    void getWorkflowNamesWithAiAgents() {
+//        List<String> workflowNames = List.of(
+//                AI_WORKFLOW_1,
+//                AI_WORKFLOW_2,
+//                AI_WORKFLOW_3,
+//                AI_WORKFLOW_4,
+//                TASK_WORKFLOW_1,
+//                TASK_WORKFLOW_2
+//        );
+//        when(resourceLoaderService.getAllWorkFlowNames()).thenReturn(workflowNames);
+//        List<String> result = n8NService.getWorkflowNamesWithAiAgents();
+//        assertEquals(4, result.size());
+//        result.forEach(name -> {
+//            assertTrue("Name contains correct prefix.", StringUtils.containsIgnoreCase(name, "AI_Agent"));
+//        });
+//    }
 
     @Test
     void saveWorkflow() {

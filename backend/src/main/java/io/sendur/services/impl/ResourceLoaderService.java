@@ -73,7 +73,9 @@ public class ResourceLoaderService {
      * @return {@link List<String>} Names of all workflows that contain AI Agents
      */
     public List<String> getAiAgentWorkFlowNames() {
-        List<String> aiWorkflowNames = new ArrayList<>();
+        // todo: this is very naive, this should handle multiple file extensions or fail-fast
+        // todo: if the workflow file is not in the correct format type (i.e. json)
+        List<String> aiWorkflowNames = new ArrayList<>(); // some silly bug here
         List<String> allWorkflowNames = getAllWorkFlowNames();
         for (String workflowName : allWorkflowNames) {
             if (StringUtils.startsWithIgnoreCase(workflowName, AI_AGENT_FILE_PREFIX)) {
@@ -95,6 +97,8 @@ public class ResourceLoaderService {
      * @return {@link List<String>} all workflow names
      */
     public List<String> getAllWorkFlowNames() {
+        // todo: this method is misleading, it says get workflow name, however
+        // todo: this returns the full file name of the workflow.
         List<String> names = new ArrayList<>();
         try {
             Enumeration<URL> resources = getClass().getClassLoader().getResources(WORKFLOW_DIR);

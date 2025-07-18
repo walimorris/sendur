@@ -27,8 +27,10 @@ public class SecurityConfiguration {
                                 "/built/**",
                                 "/login/**",
                                 "/oauth2/**",
-                                "/favicon.ico" ).permitAll()
-                        .requestMatchers("/sendur/api/**").authenticated()
+                                "/favicon.ico").permitAll()
+                        .requestMatchers(
+                                "/sendur/api/**",
+                                "/actuator/**").authenticated()
                         .anyRequest()
                         .authenticated())
                 .oauth2Login(oauth -> oauth.defaultSuccessUrl("/", true))

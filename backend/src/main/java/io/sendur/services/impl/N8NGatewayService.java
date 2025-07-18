@@ -62,7 +62,8 @@ public class N8NGatewayService implements N8NGateway {
                 LOGGER.info("n8n HOST '{}' on PORT '{}' is open and accepting", host, port);
                 return true;
             } else {
-                throw new IllegalStateException("n8n HOST " + host + " on PORT " + port + " is closed and not accepting");
+                LOGGER.warn("n8n HOST: {} on PORT: {} is closed and not accepting", host, port);
+                return false;
             }
         } catch (IOException e) {
             LOGGER.error("Can't connect to {}:{}: {}", host, port, e.getMessage());
