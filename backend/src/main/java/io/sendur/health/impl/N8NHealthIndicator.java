@@ -1,8 +1,8 @@
 package io.sendur.health.impl;
 
-import io.sendur.configurations.N8NConfigurationProperties;
+import io.sendur.configuration.N8NConfigurationProperties;
 import io.sendur.health.BaseHealthIndicator;
-import io.sendur.services.impl.N8NGatewayService;
+import io.sendur.service.impl.N8NGatewayService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

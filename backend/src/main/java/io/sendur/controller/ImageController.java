@@ -1,0 +1,27 @@
+package io.sendur.controller;
+
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.StreamUtils;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.io.IOException;
+
+@RestController
+@RequestMapping("/images")
+public class ImageController {
+
+    @GetMapping("/*")
+    public ResponseEntity<byte[]> getImage(HttpServletRequest request) throws IOException {
+        String requestUri = request.getRequestURI();
+        ClassPathResource imageFile = new ClassPathResource(requestUri);
+        byte[] bytes = StreamUtils.copyToByteArray(imageFile.getInputStream());
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_PNG)
+                .body(bytes);
+    }
+}

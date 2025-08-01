@@ -25,16 +25,23 @@ const Navigation = () => {
                     <Button
                         variant="outlined"
                         color="primary"
-                        onClick={() => navigate('/configuration')}
+                        onClick={() => navigate('/')}
                     >
-                        Node Configuration
+                        Leads
                     </Button>
                     <Button
                         variant="outlined"
                         color="primary"
-                        onClick={() => navigate('/')}
+                        onClick={() => navigate('/workflows')}
                     >
-                        Leads
+                        Workflows
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        color="primary"
+                        onClick={() => navigate('/configuration')}
+                    >
+                        Node Configuration
                     </Button>
                 </Stack>
             </Box>

@@ -1,16 +1,20 @@
 package io.sendur.security;
 
-import io.sendur.configurations.N8NConfigurationProperties;
+import io.sendur.configuration.N8NConfigurationProperties;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -25,6 +29,8 @@ public class AuthService {
 
     private static final String CLIENT_ID = "client_id";
     private static final String ISS = "iss";
+
+    private static final String FORBIDDEN = "FORBIDDEN";
 
     public AuthService(final N8NConfigurationProperties n8NConfigProps) {
         this.n8NConfigProps = n8NConfigProps;
@@ -51,6 +57,22 @@ public class AuthService {
      */
     public boolean isAuthorizedReaderMachine(String clientId) {
         return StringUtils.isNotBlank(clientId) && clientId.equals(n8NConfigProps.getReaderClient());
+    }
+
+    /**
+     * A basic UNAUTHORIZED response utility that can be reused in controller classes.
+     *
+     * @return {@link ResponseEntity}
+     */
+    public ResponseEntity<?> forbiddenResponse() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .contentType(MediaType.APPLICATION_JSON)
+                .lastModified(Instant.now().toEpochMilli())
+                .body(FORBIDDEN);
+    }
+
+    public boolean isNotAuthorized(Authentication authentication) {
+        return !isExplicitlyAuthorized(authentication);
     }
 
     /**
