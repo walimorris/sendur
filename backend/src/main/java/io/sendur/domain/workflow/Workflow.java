@@ -40,7 +40,8 @@ public class Workflow {
     private ObjectId _id;
 
     // workflow id (business) - different from _id for persistence
-    private String id;
+    @JsonProperty("id")
+    private String workflowId;
     private String name;
     private List<Map<String, Object>> nodes;
     private Map<String, Object> pinData;

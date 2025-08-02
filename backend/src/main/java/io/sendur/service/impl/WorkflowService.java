@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class WorkflowService {
@@ -21,6 +22,11 @@ public class WorkflowService {
     }
 
     public Workflow saveWorkflow(Workflow workflow) {
+        Optional<Workflow> existingWorkflow = workflowRepository.findByWorkflowId(workflow.getWorkflowId());
+        if (existingWorkflow.isPresent()) {
+            LOGGER.warn("Workflow with workflowId already exists {}", workflow.getWorkflowId());
+            return existingWorkflow.get();
+        }
         return workflowRepository.save(workflow);
     }
 

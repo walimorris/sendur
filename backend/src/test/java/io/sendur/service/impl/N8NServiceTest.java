@@ -221,11 +221,11 @@ class N8NServiceTest {
     void loadWorkflow() throws IOException {
         String workflowJson1 = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
         Workflow expectedWorkflow1 = WorkflowConverter.fromJsonString(workflowJson1);
-        String expectedWorkflowId1 = expectedWorkflow1.getId();
+        String expectedWorkflowId1 = expectedWorkflow1.getWorkflowId();
         when(resourceLoaderService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_1)).thenReturn(workflowJson1);
 
         Workflow workflowResult1 = n8NService.loadWorkflow(MINIMAL_WORKFLOW_NAME_1);
-        String workflowResultId1 = workflowResult1.getId();
+        String workflowResultId1 = workflowResult1.getWorkflowId();
         assertEquals(expectedWorkflow1.getName(), workflowResult1.getName());
         assertEquals(expectedWorkflowId1, workflowResultId1);
         assertEquals(expectedWorkflow1.getNodes().size(), workflowResult1.getNodes().size());
