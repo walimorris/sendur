@@ -96,7 +96,19 @@ public class N8NService {
      * @return {@link List<String>} workflow names
      */
     public List<String> getWorkflowNamesWithAiAgents() {
-        return resourceLoaderService.getAiAgentWorkFlowNames();
+        // gotta cache these values
+        List<String> workflowNameResults = new ArrayList<>();
+        List<String> workFlowWithAiAgentsNames = resourceLoaderService.getAiAgentWorkFlowNames();
+        for (String workflowName : workFlowWithAiAgentsNames) {
+            Workflow currentWorkflow = loadWorkflow(workflowName);
+            List<Map<String, Object>> workflowNodes = getWorkflowNodes(currentWorkflow);
+            for (Map<String, Object> node : workflowNodes) {
+                if (isLlmBearingNode(node)) {
+                    workflowNameResults.add(workflowName);
+                }
+            }
+        }
+        return workflowNameResults;
     }
 
     /**
@@ -129,8 +141,7 @@ public class N8NService {
                 Map<String, String> prompts = new HashMap<>();
                 for (Map<String, Object> node : nodes) {
                     String currentNodeId = (String) node.getOrDefault("id", "");
-                    String nodeType = (String) node.getOrDefault("type", "");
-                    if (StringUtils.equals(nodeType, LLM_NODE)) {
+                    if (isLlmBearingNode(node)) {
                         // get the parameter that contain the prompt
                         Map<String, Object> nodeParameters = (Map<String, Object>) node.getOrDefault("parameters", new HashMap<>());
                         String promptText = (String) nodeParameters.getOrDefault("text", "");
@@ -195,6 +206,18 @@ public class N8NService {
             }
         }
         return false;
+    }
+
+    /**
+     * Given a node, this method validates if it is an AI agent bearing node.
+     *
+     * @param node Workflow node
+     *
+     * @return boolean - if this is an AI agent bearing node.
+     */
+    private boolean isLlmBearingNode(Map<String, Object> node) {
+        String nodeType = (String) node.getOrDefault("type", "");
+        return StringUtils.equals(nodeType, LLM_NODE);
     }
 
     /**

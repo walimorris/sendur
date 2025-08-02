@@ -47,8 +47,20 @@ const Workflows = () => {
             <Navigation/>
             <Box p={4}>
                 <Typography variant="h4" mb={3} fontWeight="bold">
-                    Upload n8n Workflows
+                    Upload Workflows
                 </Typography>
+                <Card variant="outlined" sx={{ borderRadius: 3, mb: 3 }}>
+                    <CardContent>
+                        <Typography variant="body1" color="text.secondary">
+                            You can upload exported <strong>n8n workflow JSON</strong> files here. To export a workflow, go to the n8n UI,
+                            open your workflow, and select <strong>Export</strong> → <strong>Download as file</strong>. Once uploaded,
+                            the workflow configuration will be stored in MongoDB.
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" mt={2}>
+                            <strong>Note:</strong> Sensitive values like API keys, credentials, and environment variables are not included in the exported file and must be configured separately.
+                        </Typography>
+                    </CardContent>
+                </Card>
                 <Stack spacing={3}>
                     <Card key="workflow-upload" variant="outlined" sx={{ borderRadius: 3 }}>
                         <CardContent>

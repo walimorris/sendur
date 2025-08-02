@@ -11,7 +11,7 @@ import {
     Button,
     Divider,
     Chip,
-    Stack
+    Stack, TextareaAutosize
 } from '@mui/material';
 import axios from "axios";
 
@@ -103,9 +103,23 @@ const Configuration = () => {
             <Navigation/>
             <Box p={4}>
                 <Typography variant="h4" mb={3} fontWeight="bold">
-                    Configure AI Agent Prompts
+                    Configure AI Prompts
                 </Typography>
+                <Card variant="outlined" sx={{ borderRadius: 3, mb: 3 }}>
+                    <CardContent>
+                        <Typography variant="body1" color="text.secondary">
+                            Workflows that contain <strong>AI Agent</strong> or <strong>LLM</strong> nodes are automatically detected and their prompts are added to the dropdown list below. Once selected, the corresponding prompt will be displayed and can be customized to fit your needs.
+                        </Typography>
 
+                        <Typography variant="body2" color="text.secondary" mt={2}>
+                            For example, updating a <strong>Location Agent</strong> prompt may allow you to change the business types it searches for or the geographic region it covers.
+                        </Typography>
+
+                        <Typography variant="body2" color="text.secondary" mt={2}>
+                            <strong>Note:</strong> Any content wrapped in <code>&lt;json&gt;...&lt;/json&gt;</code> or similar formatting examples is intended to guide the agent’s output and should not be modified. These structures are used to shape the data stored in the database and altering them may break the workflow.
+                        </Typography>
+                    </CardContent>
+                </Card>
                 <Box mb={4}>
                     <Autocomplete
                         options={aiWorkflows}
@@ -129,15 +143,35 @@ const Configuration = () => {
 
                                 <Divider sx={{ mb: 2 }} />
 
-                                <TextField
-                                    label="Prompt"
-                                    variant="outlined"
-                                    fullWidth
-                                    multiline
-                                    minRows={4}
-                                    value={workflowAgent.prompt}
-                                    onChange={(e) => handlePromptChange(workflowAgent.id, e.target.value)}
-                                />
+                                <Box
+                                    sx={{
+                                        backgroundColor: '#f9f9fb',
+                                        fontFamily: 'monospace',
+                                        fontSize: '0.875rem',
+                                        padding: 2,
+                                        borderRadius: 2,
+                                        whiteSpace: 'pre-wrap',
+                                        overflowX: 'auto',
+                                        border: '1px solid #e0e0e0',
+                                        lineHeight: 1.6,
+                                    }}
+                                >
+                                    <TextareaAutosize
+                                        value={workflowAgent.prompt}
+                                        onChange={(e) => handlePromptChange(workflowAgent.id, e.target.value)}
+                                        minRows={6}
+                                        style={{
+                                            width: '100%',
+                                            border: 'none',
+                                            outline: 'none',
+                                            backgroundColor: 'transparent',
+                                            fontFamily: 'inherit',
+                                            fontSize: 'inherit',
+                                            lineHeight: 'inherit',
+                                            resize: 'vertical',
+                                        }}
+                                    />
+                                </Box>
                             </CardContent>
 
                             <CardActions sx={{ justifyContent: 'flex-end', paddingX: 2, paddingBottom: 2 }}>
