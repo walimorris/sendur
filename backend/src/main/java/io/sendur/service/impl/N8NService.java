@@ -3,8 +3,6 @@ package io.sendur.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.sendur.domain.lead.ApprovedLeadsWebhookResult;
 import io.sendur.domain.lead.Lead;
-import io.sendur.domain.workflow.Node;
-import io.sendur.domain.workflow.Parameters;
 import io.sendur.domain.workflow.Workflow;
 import io.sendur.domain.workflow.WorkflowConverter;
 import io.sendur.repository.LeadRepository;
@@ -46,20 +44,23 @@ public class N8NService {
      * Get a workflow node from a workflow's name and the node id of the searched workflow node.
      *
      * @param workflowName {@link String} workflow name
-     * @param nodeId {@link UUID} workflow nodeId
+     * @param nodeId {@link String} workflow nodeId
      *
-     * @return {@link Node}
+     * @return {@link Map} searched workflow node
      */
-    public Node getWorkflowNodeFromNameAndNodeId(String workflowName, UUID nodeId) {
-        if (ObjectUtils.allNotNull(workflowName, nodeId)) {
+    public Map<String, Object> getWorkflowNodeFromNameAndNodeId(String workflowName, String nodeId) {
+        if (StringUtils.isNotEmpty(workflowName) && StringUtils.isNotEmpty(nodeId)) {
             Workflow searchedWorkflow = loadWorkflow(workflowName);
-            if (searchedWorkflow == null) {
+            if (ObjectUtils.isEmpty(searchedWorkflow)) {
                 return null;
             }
-            List<Node> nodes = searchedWorkflow.getNodes();
-            for (Node node : nodes) {
-                if (node.getID().equals(nodeId)) {
-                    return node;
+            List<Map<String, Object>> nodes = getWorkflowNodes(searchedWorkflow);
+            if (ObjectUtils.isNotEmpty(nodes)) {
+                for (Map<String, Object> node : nodes) {
+                    String currentNodeId = (String) node.getOrDefault("id", "");
+                    if (StringUtils.equals(currentNodeId, nodeId)) {
+                        return node;
+                    }
                 }
             }
         }
@@ -69,17 +70,18 @@ public class N8NService {
     /**
      * Get a workflow's node given the search node id.
      *
-     * @param nodeId {@link UUID} searched node id
+     * @param nodeId {@link String} searched node id
      *
-     * @return {@link Node} node with given node id
+     * @return {@link Map} search workflow node
      */
-    public Node getWorkFlowNodeFromNodeId(UUID nodeId) {
+    public Map<String, Object> getWorkFlowNodeFromNodeId(String nodeId) {
         if (ObjectUtils.isNotEmpty(nodeId)) {
             List<Workflow> workflows = loadAllWorkflows();
             for (Workflow workflow : workflows) {
-                List<Node> currentNodes = workflow.getNodes();
-                for (Node node : currentNodes) {
-                    if (StringUtils.equals(node.getID().toString(), nodeId.toString())) {
+                List<Map<String, Object>> currentNodes = getWorkflowNodes(workflow);
+                for (Map<String, Object> node : currentNodes) {
+                    String currentNodeId = (String) node.getOrDefault("id", "");
+                    if (StringUtils.equals(currentNodeId, nodeId)) {
                         return node;
                     }
                 }
@@ -98,6 +100,17 @@ public class N8NService {
     }
 
     /**
+     * Get all Workflow nodes from the given {@link Workflow}.
+     *
+     * @param workflow {@link Workflow}
+     *
+     * @return {@link List<Map>} list of all workflow nodes
+     */
+    public List<Map<String, Object>> getWorkflowNodes(Workflow workflow) {
+        return workflow.getNodes();
+    }
+
+    /**
      * Retrieve all current LLM prompts from a current workflow. Iterates on the workflow nodes,
      * finds all the agents and pulls the prompt from the agent. Adds the node ID to the Map as
      * a reference point.
@@ -106,21 +119,25 @@ public class N8NService {
      *
      * @return {@link Map} containing Node ID and Prompt
      */
-    public Map<UUID, String> getLlmPromptsFromWorkflow(String workflowName) {
+    @SuppressWarnings("unchecked")
+    public Map<String, String> getLlmPromptsFromWorkflow(String workflowName) {
         if (StringUtils.isNotEmpty(workflowName)) {
             // iterate nodes and get all the llm nodes
             Workflow workflow = loadWorkflow(workflowName);
-            if (workflow != null) {
-                List<Node> nodes = workflow.getNodes();
-                Map<UUID, String> prompts = new HashMap<>();
-                for (Node node : nodes) {
-                    if (node.getType().equals(LLM_NODE)) {
+            if (ObjectUtils.isNotEmpty(workflow)) {
+                List<Map<String, Object>> nodes = workflow.getNodes();
+                Map<String, String> prompts = new HashMap<>();
+                for (Map<String, Object> node : nodes) {
+                    String currentNodeId = (String) node.getOrDefault("id", "");
+                    String nodeType = (String) node.getOrDefault("type", "");
+                    if (StringUtils.equals(nodeType, LLM_NODE)) {
                         // get the parameter that contain the prompt
-                        Parameters parameters = node.getParameters();
-                        if (StringUtils.isEmpty(parameters.getText())) {
-                            prompts.put(node.getID(), "empty prompt - review configuration");
+                        Map<String, Object> nodeParameters = (Map<String, Object>) node.getOrDefault("parameters", new HashMap<>());
+                        String promptText = (String) nodeParameters.getOrDefault("text", "");
+                        if (StringUtils.isEmpty(promptText)) {
+                            prompts.put(currentNodeId, "empty prompt - review configuration");
                         } else {
-                            prompts.put(node.getID(), parameters.getText());
+                            prompts.put(currentNodeId, promptText);
                         }
                     }
                 }
@@ -167,10 +184,11 @@ public class N8NService {
      *
      * @return boolean
      */
-    public boolean removeWorkflowNode(Workflow workflow, UUID nodeId) {
-        if (ObjectUtils.anyNotNull(workflow, nodeId)) {
-            for (Node node : workflow.getNodes()) {
-                if (node.getID().equals(nodeId)) {
+    public boolean removeWorkflowNode(Workflow workflow, String nodeId) {
+        if (ObjectUtils.isNotEmpty(workflow) && StringUtils.isNotEmpty(nodeId)) {
+            for (Map<String, Object> node : workflow.getNodes()) {
+                String id = (String) node.getOrDefault("id", "");
+                if (StringUtils.equals(id, nodeId)) {
                     workflow.getNodes().remove(node);
                     return true;
                 }

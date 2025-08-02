@@ -1,7 +1,6 @@
 package io.sendur.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import io.sendur.domain.workflow.Node;
 import io.sendur.domain.workflow.WorkFlowPrompt;
 import io.sendur.domain.workflow.Workflow;
 import io.sendur.security.AuthService;
@@ -21,7 +20,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/sendur/api/n8n/configuration")
@@ -47,9 +45,9 @@ public class N8NConfigurationController {
                     .lastModified(Instant.now().toEpochMilli())
                     .build();
         }
-        Map<UUID, String> prompts = n8nService.getLlmPromptsFromWorkflow(workflowName);
+        Map<String, String> prompts = n8nService.getLlmPromptsFromWorkflow(workflowName);
         List<WorkFlowPrompt> workFlowPrompts = new ArrayList<>();
-        for (Map.Entry<UUID, String> entry : prompts.entrySet()) {
+        for (Map.Entry<String, String> entry : prompts.entrySet()) {
             WorkFlowPrompt workFlowPrompt = new WorkFlowPrompt();
             workFlowPrompt.setName(workflowName);
             workFlowPrompt.setId(entry.getKey());
@@ -86,7 +84,7 @@ public class N8NConfigurationController {
                     .build();
         }
         Workflow workflow = n8nService.loadWorkflow(updatedWorkFlowPrompt.getName());
-        Node workflowPromptNode = n8nService.getWorkflowNodeFromNameAndNodeId(updatedWorkFlowPrompt.getName(), updatedWorkFlowPrompt.getId());
+        Map<String, Object> workflowPromptNode = n8nService.getWorkflowNodeFromNameAndNodeId(updatedWorkFlowPrompt.getName(), updatedWorkFlowPrompt.getId());
         if (workflowPromptNode == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -102,7 +100,10 @@ public class N8NConfigurationController {
                     .lastModified(Instant.now().toEpochMilli())
                     .body(violations);
         }
-        workflowPromptNode.getParameters().setText(updatedWorkFlowPrompt.getPrompt());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> parameters = (Map<String, Object>) workflowPromptNode.getOrDefault("parameters", null);
+        parameters.replace("text", updatedWorkFlowPrompt.getPrompt());
 
         // may need to pass the updateWorkFlowPrompt that has file name format
         boolean hasSavedWorkflow = n8nService.saveWorkflow(workflow);
