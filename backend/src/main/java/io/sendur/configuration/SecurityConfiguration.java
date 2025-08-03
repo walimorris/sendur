@@ -1,6 +1,7 @@
 package io.sendur.configuration;
 
-import io.sendur.models.authentication.CognitoLogoutHandler;
+import io.sendur.component.authentication.CognitoLogoutHandler;
+import io.sendur.component.authentication.CustomOAuth2SuccessHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -20,7 +21,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class SecurityConfiguration {
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, CognitoLogoutHandler cognitoLogoutHandler) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, CustomOAuth2SuccessHandler customOAuth2SuccessHandler,
+                                           CognitoLogoutHandler cognitoLogoutHandler) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers(
@@ -33,7 +35,7 @@ public class SecurityConfiguration {
                                 "/actuator/**").authenticated()
                         .anyRequest()
                         .authenticated())
-                .oauth2Login(oauth -> oauth.defaultSuccessUrl("/", true))
+                .oauth2Login(oauth -> oauth.successHandler(customOAuth2SuccessHandler))
                 .logout(logout -> logout.logoutSuccessHandler(cognitoLogoutHandler))
                 .oauth2ResourceServer(resource -> resource.jwt(Customizer.withDefaults()));
         return http.build();
