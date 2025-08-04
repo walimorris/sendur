@@ -30,6 +30,33 @@ import static org.springframework.test.util.AssertionErrors.*;
 class N8NServiceTest {
     private static LogCaptor logCaptor;
 
+    @BeforeAll
+    public static void setLogCaptor() {
+        logCaptor = LogCaptor.forClass(N8NService.class);
+    }
+
+    @AfterEach
+    public void clearLogs() {
+        logCaptor.clearLogs();
+    }
+
+    @AfterAll
+    public static void tearDown() {
+        logCaptor.close();
+    }
+
+    @Mock
+    private N8NGatewayService n8NGatewayService;
+
+    @Mock
+    private WorkflowService workflowService;
+
+    @Mock
+    private LeadRepository leadRepository;
+
+    @InjectMocks
+    private N8NService n8NService;
+
     private static final String PERSISTED_LEADS_RESOURCE = "leads/leads_0.json";
 
     private static final String MINIMAL_WORKFLOW_RESOURCE_0 = "workflows/workflow_0.json";
@@ -66,33 +93,6 @@ class N8NServiceTest {
         AI_WORKFLOW_NODE_0_UUID = "12345678-1234-1234-1234-123456789abc";
         UNKNOWN_WORKFLOW_NODE_UUID = "123e4567-e89b-12d3-a456-426614174123";
     }
-
-    @BeforeAll
-    public static void setLogCaptor() {
-        logCaptor = LogCaptor.forClass(N8NService.class);
-    }
-
-    @AfterEach
-    public void clearLogs() {
-        logCaptor.clearLogs();
-    }
-
-    @AfterAll
-    public static void tearDown() {
-        logCaptor.close();
-    }
-
-    @Mock
-    private N8NGatewayService n8NGatewayService;
-
-    @Mock
-    private WorkflowService workflowService;
-
-    @Mock
-    private LeadRepository leadRepository;
-
-    @InjectMocks
-    private N8NService n8NService;
 
     @Test
     void sendEmailsToLeads() {
