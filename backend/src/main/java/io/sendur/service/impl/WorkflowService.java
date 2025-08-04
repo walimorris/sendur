@@ -104,8 +104,9 @@ public class WorkflowService {
         List<Workflow> allWorkflows = findAllWorkflows();
         Workflow searchedWorkflow = null;
         for (Workflow workflow : allWorkflows) {
-            if (StringUtils.equalsIgnoreCase(workFlowName, workflow.getName())) {
+            if (StringUtils.containsIgnoreCase(workflow.getName(), workFlowName)) {
                 searchedWorkflow = workflow;
+                break;
             }
         }
         if (ObjectUtils.isEmpty(searchedWorkflow)) {

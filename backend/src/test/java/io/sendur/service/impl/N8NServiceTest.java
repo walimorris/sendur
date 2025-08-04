@@ -86,7 +86,7 @@ class N8NServiceTest {
     private N8NGatewayService n8NGatewayService;
 
     @Mock
-    private ResourceLoaderService resourceLoaderService;
+    private WorkflowService workflowService;
 
     @Mock
     private LeadRepository leadRepository;
@@ -111,25 +111,25 @@ class N8NServiceTest {
     @Test
     void getWorkflowNodeFromNameAndNodeId() {
         String minimalWorkflowJson = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_0);
-        when(resourceLoaderService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_0)).thenReturn(minimalWorkflowJson);
+        when(workflowService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_0)).thenReturn(minimalWorkflowJson);
         Map<String, Object> minimalWorkflowNode = n8NService.getWorkflowNodeFromNameAndNodeId(MINIMAL_WORKFLOW_NAME_0, MINIMAL_WORKFLOW_NODE_0_UUID);
         String nodeName = (String) minimalWorkflowNode.getOrDefault("name", "");
         assertEquals(MINIMAL_WORKFLOW_NODE_0_NAME, nodeName);
-        verify(resourceLoaderService, times(1)).loadWorkflowJson(MINIMAL_WORKFLOW_NAME_0);
+        verify(workflowService, times(1)).loadWorkflowJson(MINIMAL_WORKFLOW_NAME_0);
     }
 
     @Test
     void getWorkFlowNodeFromNameAndNodeIdNullName() {
         Map<String, Object> workflowNode = n8NService.getWorkflowNodeFromNameAndNodeId(null, MINIMAL_WORKFLOW_NODE_0_UUID);
         assertNull("WorkflowNode is null as intended.", workflowNode);
-        verify(resourceLoaderService, times(0)).loadWorkflowJson(anyString());
+        verify(workflowService, times(0)).loadWorkflowJson(anyString());
     }
 
     @Test
     void getWorkflowNodeFromNameAndNodeIdNullNodeId() {
         Map<String, Object> workflowNode = n8NService.getWorkflowNodeFromNameAndNodeId(MINIMAL_WORKFLOW_NAME_0, null);
         assertNull("WorkflowNode is null as intended.", workflowNode);
-        verify(resourceLoaderService, times(0)).loadWorkflowJson(anyString());
+        verify(workflowService, times(0)).loadWorkflowJson(anyString());
     }
 
     @Test
@@ -138,25 +138,25 @@ class N8NServiceTest {
         String minimalWorkflowJson0 = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_0);
         String minimalWorkflowJson1 = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
 
-        when(resourceLoaderService.getAllWorkFlowNames()).thenReturn(workflowNames);
-        when(resourceLoaderService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_0)).thenReturn(minimalWorkflowJson0);
-        when(resourceLoaderService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_1)).thenReturn(minimalWorkflowJson1);
+        when(workflowService.getAllWorkFlowNames()).thenReturn(workflowNames);
+        when(workflowService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_0)).thenReturn(minimalWorkflowJson0);
+        when(workflowService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_1)).thenReturn(minimalWorkflowJson1);
 
         Map<String, Object> searchedNode = n8NService.getWorkFlowNodeFromNodeId(MINIMAL_WORKFLOW_NODE_0_UUID);
         String id = (String) searchedNode.getOrDefault("id", "");
         String name = (String) searchedNode.getOrDefault("name", "");
         assertEquals(MINIMAL_WORKFLOW_NODE_0_UUID, id);
         assertEquals(MINIMAL_WORKFLOW_NODE_0_NAME, name);
-        verify(resourceLoaderService, times(1)).getAllWorkFlowNames();
-        verify(resourceLoaderService, times(2)).loadWorkflowJson(anyString());
+        verify(workflowService, times(1)).getAllWorkFlowNames();
+        verify(workflowService, times(2)).loadWorkflowJson(anyString());
     }
 
     @Test
     void getWorkflowNodeFromNodeIdNullUUID() {
         Map<String, Object> searchedNode = n8NService.getWorkFlowNodeFromNodeId(null);
         assertNull("WorkflowNode is null as intended.", searchedNode );
-        verify(resourceLoaderService, times(0)).getAllWorkFlowNames();
-        verify(resourceLoaderService, times(0)).loadWorkflowJson(anyString());
+        verify(workflowService, times(0)).getAllWorkFlowNames();
+        verify(workflowService, times(0)).loadWorkflowJson(anyString());
     }
 
     @Test
@@ -165,20 +165,20 @@ class N8NServiceTest {
         String minimalWorkflowJson0 = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_0);
         String minimalWorkflowJson1 = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
 
-        when(resourceLoaderService.getAllWorkFlowNames()).thenReturn(workflowNames);
-        when(resourceLoaderService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_0)).thenReturn(minimalWorkflowJson0);
-        when(resourceLoaderService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_1)).thenReturn(minimalWorkflowJson1);
+        when(workflowService.getAllWorkFlowNames()).thenReturn(workflowNames);
+        when(workflowService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_0)).thenReturn(minimalWorkflowJson0);
+        when(workflowService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_1)).thenReturn(minimalWorkflowJson1);
 
         Map<String, Object> searchedNode = n8NService.getWorkFlowNodeFromNodeId(UNKNOWN_WORKFLOW_NODE_UUID);
         assertNull("WorkflowNode is null as intended with valid nodes, but unknown UUID", searchedNode);
-        verify(resourceLoaderService, times(1)).getAllWorkFlowNames();
-        verify(resourceLoaderService, times(2)).loadWorkflowJson(anyString());
+        verify(workflowService, times(1)).getAllWorkFlowNames();
+        verify(workflowService, times(2)).loadWorkflowJson(anyString());
     }
 
     @Test
     void getLlmPromptsFromWorkflow() {
         String aiWorkflowJson = TestUtils.getStringContentFromResource(AI_WORKFLOW_RESOURCE_0);
-        when(resourceLoaderService.loadWorkflowJson(AI_WORKFLOW_NODE_NAME)).thenReturn(aiWorkflowJson);
+        when(workflowService.loadWorkflowJson(AI_WORKFLOW_NODE_NAME)).thenReturn(aiWorkflowJson);
         Map<String, String> prompts = n8NService.getLlmPromptsFromWorkflow(AI_WORKFLOW_NODE_NAME);
 
         Set<String> resultsPrompts = new HashSet<>();
@@ -189,18 +189,18 @@ class N8NServiceTest {
         assertNotNull("Map contains LLM Node's UUID and prompt.", prompts);
         assertTrue("Map contains correct UUID for LLM Node.", uuids.contains(AI_WORKFLOW_NODE_0_UUID));
         assertTrue("Map contains correct prompt for LLM Node.", resultsPrompts.contains(AI_WORKFLOW_NODE_0_PROMPT));
-        verify(resourceLoaderService, times(1)).loadWorkflowJson(anyString());
+        verify(workflowService, times(1)).loadWorkflowJson(anyString());
     }
 
     @Test
     void getLlmPromptFromWorkflowNoLlmNodes() {
         String workflowJson = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
-        when(resourceLoaderService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_1)).thenReturn(workflowJson);
+        when(workflowService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_1)).thenReturn(workflowJson);
         Map<String, String> prompts1 = n8NService.getLlmPromptsFromWorkflow(MINIMAL_WORKFLOW_NAME_1);
         Map<String, String> prompts2 = n8NService.getLlmPromptsFromWorkflow(StringUtils.EMPTY);
         assertEquals(0, prompts1.size());
         assertEquals(0, prompts2.size());
-        verify(resourceLoaderService, times(1)).loadWorkflowJson(anyString());
+        verify(workflowService, times(1)).loadWorkflowJson(anyString());
     }
 
     @Test
@@ -222,23 +222,23 @@ class N8NServiceTest {
         String workflowJson1 = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
         Workflow expectedWorkflow1 = WorkflowConverter.fromJsonString(workflowJson1);
         String expectedWorkflowId1 = expectedWorkflow1.getWorkflowId();
-        when(resourceLoaderService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_1)).thenReturn(workflowJson1);
+        when(workflowService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_1)).thenReturn(workflowJson1);
 
         Workflow workflowResult1 = n8NService.loadWorkflow(MINIMAL_WORKFLOW_NAME_1);
         String workflowResultId1 = workflowResult1.getWorkflowId();
         assertEquals(expectedWorkflow1.getName(), workflowResult1.getName());
         assertEquals(expectedWorkflowId1, workflowResultId1);
         assertEquals(expectedWorkflow1.getNodes().size(), workflowResult1.getNodes().size());
-        verify(resourceLoaderService, times(1)).loadWorkflowJson(anyString());
+        verify(workflowService, times(1)).loadWorkflowJson(anyString());
     }
 
     @Test
     void loadWorkflowUnknown() {
-        when(resourceLoaderService.loadWorkflowJson(UNKNOWN_WORKFLOW_NAME)).thenReturn(null);
+        when(workflowService.loadWorkflowJson(UNKNOWN_WORKFLOW_NAME)).thenReturn(null);
 
         Workflow workflowResult = n8NService.loadWorkflow(UNKNOWN_WORKFLOW_NAME);
         assertNull("Workflow null as intended, resource unknown/not found.", workflowResult);
-        verify(resourceLoaderService, times(1)).loadWorkflowJson(anyString());
+        verify(workflowService, times(1)).loadWorkflowJson(anyString());
     }
 
     @Test
@@ -246,7 +246,7 @@ class N8NServiceTest {
         Workflow workflow = n8NService.loadWorkflow(StringUtils.EMPTY);
 
         assertNull("Workflow null as intended with empty workflow name.", workflow);
-        verify(resourceLoaderService, times(0)).loadWorkflowJson(anyString());
+        verify(workflowService, times(0)).loadWorkflowJson(anyString());
     }
 
 //    @Test

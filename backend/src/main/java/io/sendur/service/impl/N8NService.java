@@ -25,15 +25,15 @@ public class N8NService {
 
     private final N8NGatewayService n8nGatewayService;
     private final LeadRepository leadRepository;
-    private final ResourceLoaderService resourceLoaderService;
+    private final WorkflowService workflowService;
 
     @Autowired
     public N8NService(final N8NGatewayService n8nGatewayService,
                       final LeadRepository leadRepository,
-                      final ResourceLoaderService resourceLoaderService) {
+                      final WorkflowService workflowService) {
         this.n8nGatewayService = n8nGatewayService;
         this.leadRepository = leadRepository;
-        this.resourceLoaderService = resourceLoaderService;
+        this.workflowService = workflowService;
     }
 
     public ApprovedLeadsWebhookResult sendEmailsToLeads(List<Lead> leads) {
@@ -96,9 +96,8 @@ public class N8NService {
      * @return {@link List<String>} workflow names
      */
     public List<String> getWorkflowNamesWithAiAgents() {
-        // gotta cache these values
         List<String> workflowNameResults = new ArrayList<>();
-        List<String> workFlowWithAiAgentsNames = resourceLoaderService.getAiAgentWorkFlowNames();
+        List<String> workFlowWithAiAgentsNames = workflowService.getAiAgentWorkFlowNames();
         for (String workflowName : workFlowWithAiAgentsNames) {
             Workflow currentWorkflow = loadWorkflow(workflowName);
             List<Map<String, Object>> workflowNodes = getWorkflowNodes(currentWorkflow);
@@ -170,7 +169,7 @@ public class N8NService {
             return null;
         }
         try {
-            final String workflowJson = resourceLoaderService.loadWorkflowJson(workflowName);
+            final String workflowJson = workflowService.loadWorkflowJson(workflowName);
             if (!StringUtils.isEmpty(workflowJson)) {
                 return WorkflowConverter.fromJsonString(workflowJson);
             }
@@ -227,7 +226,7 @@ public class N8NService {
      */
     private List<Workflow> loadAllWorkflows() {
         List<Workflow> workflows = new ArrayList<>();
-        List<String> workflowNamesList = resourceLoaderService.getAllWorkFlowNames();
+        List<String> workflowNamesList = workflowService.getAllWorkFlowNames();
         for (String workflowName : workflowNamesList) {
             workflows.add(loadWorkflow(workflowName));
         }
