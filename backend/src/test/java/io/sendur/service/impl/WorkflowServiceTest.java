@@ -16,6 +16,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -48,6 +50,9 @@ class WorkflowServiceTest {
 
     @InjectMocks
     private WorkflowService workflowService;
+
+    private static final String MINIMAL_WORKFLOW_RESOURCE_1 = "workflows/workflow_1.json";
+    private static final String MINIMAL_WORKFLOW_NAME_1 = "Minimal Test Workflow 1";
 
     private static final String MINIMAL_WORKFLOW_RESOURCE_2 = "workflows/workflow_2.json";
     private static final String MINIMAL_WORKFLOW_NAME_2 = "Minimal Test Workflow 2";
@@ -89,15 +94,128 @@ class WorkflowServiceTest {
     }
 
     @Test
-    void findAllWorkflows() {
+    void findAllWorkflows_notCached() throws IOException {
+        String workflow1Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        String workflow2Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
+        Workflow workflow1 = WorkflowConverter.fromJsonString(workflow1Json);
+        Workflow workflow2 = WorkflowConverter.fromJsonString(workflow2Json);
+
+        List<Workflow> workflowList = List.of(workflow1, workflow2);
+
+        when(workflowSessionCache.isCached()).thenReturn(false);
+        when(workflowRepository.findAll()).thenReturn(workflowList);
+        doNothing().when(workflowSessionCache).set(workflowList);
+
+        List<Workflow> allWorkflowsResult = workflowService.findAllWorkflows();
+
+        assertEquals(2, allWorkflowsResult.size(), "WorkflowList should be size 2");
+        verify(workflowRepository, times(1)).findAll();
+        verify(workflowSessionCache, times(1)).isCached();
+        verify(workflowSessionCache, times(1)).set(workflowList);
     }
 
     @Test
-    void refresh() {
+    void findAllWorkflows_cached() throws IOException {
+        String workflow1Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        String workflow2Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
+        Workflow workflow1 = WorkflowConverter.fromJsonString(workflow1Json);
+        Workflow workflow2 = WorkflowConverter.fromJsonString(workflow2Json);
+
+        List<Workflow> workflowList = List.of(workflow1, workflow2);
+
+        when(workflowSessionCache.isCached()).thenReturn(true);
+        when(workflowSessionCache.get()).thenReturn(workflowList);
+
+        List<Workflow> allWorkflowsResult = workflowService.findAllWorkflows();
+
+        assertEquals(2, allWorkflowsResult.size(), "WorkflowList should return from WorkflowSessionCache at size 2");
+        verify(workflowRepository, times(0)).findAll();
+        verify(workflowSessionCache, times(1)).isCached();
+        verify(workflowSessionCache, times(1)).get();
     }
 
     @Test
-    void getAllWorkFlowNames() {
+    void refresh() throws IOException {
+        String workflow1Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        String workflow2Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
+        Workflow workflow1 = WorkflowConverter.fromJsonString(workflow1Json);
+        Workflow workflow2 = WorkflowConverter.fromJsonString(workflow2Json);
+
+        List<Workflow> workflowList = List.of(workflow1, workflow2);
+
+        when(workflowRepository.findAll()).thenReturn(workflowList);
+        doNothing().when(workflowSessionCache).set(workflowList);
+
+        workflowService.refresh();
+
+        verify(workflowRepository, times(1)).findAll();
+        verifyNoMoreInteractions(workflowRepository);
+        verify(workflowSessionCache, times(1)).set(workflowList);
+        verifyNoMoreInteractions(workflowSessionCache);
+    }
+
+    @Test
+    void getAllWorkFlowNames_fromCache() throws IOException {
+        String workflow1Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        String workflow2Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
+        Workflow workflow1 = WorkflowConverter.fromJsonString(workflow1Json);
+        Workflow workflow2 = WorkflowConverter.fromJsonString(workflow2Json);
+
+        List<Workflow> workflowList = List.of(workflow1, workflow2);
+
+        when(workflowSessionCache.isCached()).thenReturn(true);
+        when(workflowSessionCache.get()).thenReturn(workflowList);
+
+        List<String> allWorkflowNames = workflowService.getAllWorkFlowNames();
+
+        assertEquals(2, allWorkflowNames.size());
+        assertTrue(allWorkflowNames.contains(MINIMAL_WORKFLOW_NAME_1));
+        assertTrue(allWorkflowNames.contains(MINIMAL_WORKFLOW_NAME_2));
+        verify(workflowSessionCache, times(1)).isCached();
+        verify(workflowSessionCache, times(1)).get();
+        verifyNoMoreInteractions(workflowSessionCache);
+        verifyNoInteractions(workflowRepository);
+    }
+
+    @Test
+    void getAllWorkflowNames_fromRepository() throws IOException {
+        String workflow1Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        String workflow2Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
+        Workflow workflow1 = WorkflowConverter.fromJsonString(workflow1Json);
+        Workflow workflow2 = WorkflowConverter.fromJsonString(workflow2Json);
+
+        List<Workflow> workflowList = List.of(workflow1, workflow2);
+
+        when(workflowSessionCache.isCached()).thenReturn(false);
+        when(workflowRepository.findAll()).thenReturn(workflowList);
+        doNothing().when(workflowSessionCache).set(workflowList);
+
+        List<String> allWorkflowNames = workflowService.getAllWorkFlowNames();
+
+        assertEquals(2, allWorkflowNames.size());
+        assertTrue(allWorkflowNames.contains(MINIMAL_WORKFLOW_NAME_1));
+        assertTrue(allWorkflowNames.contains(MINIMAL_WORKFLOW_NAME_2));
+        verify(workflowSessionCache, times(1)).isCached();
+        verify(workflowSessionCache, times(1)).set(workflowList);
+        verifyNoMoreInteractions(workflowSessionCache);
+        verify(workflowRepository, times(1)).findAll();
+        verifyNoMoreInteractions(workflowRepository);
+    }
+
+    @Test
+    void getAllWorkflowNames_emptyWorkflows() {
+        when(workflowSessionCache.isCached()).thenReturn(false);
+        when(workflowRepository.findAll()).thenReturn(new ArrayList<>());
+
+        List<String> allWorkflowNames = workflowService.getAllWorkFlowNames();
+
+        assertTrue(allWorkflowNames.isEmpty());
+        verify(workflowSessionCache, times(1)).isCached();
+        verifyNoMoreInteractions(workflowSessionCache);
+        verify(workflowRepository, times(1)).findAll();
+        verifyNoMoreInteractions(workflowRepository);
+        assertTrue(logCaptor.getLogs().get(0).contains("Warning: workflows not available in cache or database." +
+                " Validate this is intended."));
     }
 
     @Test

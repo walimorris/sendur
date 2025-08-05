@@ -41,17 +41,12 @@ public class WorkflowService {
         return savedWorkflow;
     }
 
-    public List<Workflow> findAllWorkflows() {
-        if (workflowSessionCache.isCached()) {
-            return workflowSessionCache.get();
-        }
-        List<Workflow> allWorkflows = workflowRepository.findAll();
-        workflowSessionCache.set(allWorkflows);
-        return allWorkflows;
-    }
-
+    /**
+     * Workflow refresh bypasses cache and pulls the most upto date workflows from
+     * data storage and caches these workflows.
+     */
     public void refresh() {
-        List<Workflow> allWorkflows = findAllWorkflows();
+        List<Workflow> allWorkflows = workflowRepository.findAll();
         workflowSessionCache.set(allWorkflows);
     }
 
@@ -70,8 +65,32 @@ public class WorkflowService {
                     .filter(StringUtils::isNotBlank)
                     .toList();
         }
-        LOGGER.error("Error: workflows not available in cache or database");
+        LOGGER.warn("Warning: workflows not available in cache or database. Validate this is intended.");
         return new ArrayList<>();
+    }
+
+    /**
+     * Get all possible workflows. utilizes the {@link WorkflowSessionCache} and
+     * returns all cached workflows. If workflows are not cached, then pulls all
+     * workflows from storage.
+     *
+     * @see #refresh()
+     *
+     * @return {@link List<Workflow>} list of all workflows
+     */
+    public List<Workflow> findAllWorkflows() {
+        if (workflowSessionCache.isCached()) {
+            return workflowSessionCache.get();
+        }
+        List<Workflow> allWorkflows = workflowRepository.findAll();
+
+        // This can be a false positive - don't set session key with empty object.
+        // If called with empty value it can return false empty value. Instead, when
+        // cache is checked it should return false and force a pull from datastore.
+        if (ObjectUtils.isNotEmpty(allWorkflows)) {
+            workflowSessionCache.set(allWorkflows);
+        }
+        return allWorkflows;
     }
 
     /**
