@@ -6,6 +6,7 @@ import io.sendur.domain.workflow.Workflow;
 import io.sendur.domain.workflow.WorkflowConverter;
 import io.sendur.repository.WorkflowRepository;
 import nl.altindag.log.LogCaptor;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static io.sendur.service.impl.WorkflowService.AI_AGENT_RAW;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -58,10 +60,15 @@ class WorkflowServiceTest {
     private static final String MINIMAL_WORKFLOW_NAME_2 = "Minimal Test Workflow 2";
     private static final String MINIMAL_WORKFLOW_ID_2 = "PMQuvLzHctXRBhXx";
 
+    private static final String MINIMAL_WORKFLOW_RESOURCE_3 = "workflows/workflow_3.json";
+    private static final String MINIMAL_WORKFLOW_NAME_3 = "AI Agent - Minimal Test Workflow 3";
+
+    private static final String MINIMAL_WORKFLOW_RESOURCE_4 = "workflows/workflow_4.json";
+    private static final String MINIMAL_WORKFLOW_NAME_4 = "ai agent - Minimal Test Workflow 4";
 
     @Test
     void saveWorkflow_newWorkflow() throws IOException {
-        String workflowJson = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
+        String workflowJson = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
         Workflow workflow = WorkflowConverter.fromJsonString(workflowJson);
 
         when(workflowRepository.findByWorkflowId(MINIMAL_WORKFLOW_ID_2)).thenReturn(Optional.empty());
@@ -78,7 +85,7 @@ class WorkflowServiceTest {
 
     @Test
     void saveWorkflow_existingWorkflow() throws IOException {
-        String workflowJson = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
+        String workflowJson = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
         Workflow workflow = WorkflowConverter.fromJsonString(workflowJson);
 
         // this basically says: this workflow that's being saved already exist
@@ -95,8 +102,8 @@ class WorkflowServiceTest {
 
     @Test
     void findAllWorkflows_notCached() throws IOException {
-        String workflow1Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
-        String workflow2Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
+        String workflow1Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        String workflow2Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
         Workflow workflow1 = WorkflowConverter.fromJsonString(workflow1Json);
         Workflow workflow2 = WorkflowConverter.fromJsonString(workflow2Json);
 
@@ -116,8 +123,8 @@ class WorkflowServiceTest {
 
     @Test
     void findAllWorkflows_cached() throws IOException {
-        String workflow1Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
-        String workflow2Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
+        String workflow1Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        String workflow2Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
         Workflow workflow1 = WorkflowConverter.fromJsonString(workflow1Json);
         Workflow workflow2 = WorkflowConverter.fromJsonString(workflow2Json);
 
@@ -136,8 +143,8 @@ class WorkflowServiceTest {
 
     @Test
     void refresh() throws IOException {
-        String workflow1Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
-        String workflow2Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
+        String workflow1Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        String workflow2Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
         Workflow workflow1 = WorkflowConverter.fromJsonString(workflow1Json);
         Workflow workflow2 = WorkflowConverter.fromJsonString(workflow2Json);
 
@@ -156,8 +163,8 @@ class WorkflowServiceTest {
 
     @Test
     void getAllWorkFlowNames_fromCache() throws IOException {
-        String workflow1Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
-        String workflow2Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
+        String workflow1Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        String workflow2Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
         Workflow workflow1 = WorkflowConverter.fromJsonString(workflow1Json);
         Workflow workflow2 = WorkflowConverter.fromJsonString(workflow2Json);
 
@@ -179,8 +186,8 @@ class WorkflowServiceTest {
 
     @Test
     void getAllWorkflowNames_fromRepository() throws IOException {
-        String workflow1Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
-        String workflow2Json = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
+        String workflow1Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        String workflow2Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
         Workflow workflow1 = WorkflowConverter.fromJsonString(workflow1Json);
         Workflow workflow2 = WorkflowConverter.fromJsonString(workflow2Json);
 
@@ -219,14 +226,107 @@ class WorkflowServiceTest {
     }
 
     @Test
-    void getAiAgentWorkFlowNames() {
+    void getAiAgentWorkFlowNames() throws IOException {
+        String workflow1Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        String workflow2Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
+        String workflow3Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_3);
+        String workflow4Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_4);
+        Workflow workflow1 = WorkflowConverter.fromJsonString(workflow1Json);
+        Workflow workflow2 = WorkflowConverter.fromJsonString(workflow2Json);
+        Workflow workflow3 = WorkflowConverter.fromJsonString(workflow3Json);
+        Workflow workflow4 = WorkflowConverter.fromJsonString(workflow4Json);
+
+        List<Workflow> workflowList = List.of(workflow1, workflow2, workflow3, workflow4);
+
+        when(workflowSessionCache.isCached()).thenReturn(false);
+        when(workflowRepository.findAll()).thenReturn(workflowList);
+        doNothing().when(workflowSessionCache).set(workflowList);
+
+        List<String> aiAgentWorkflowNames = workflowService.getAiAgentWorkFlowNames();
+
+        assertEquals(2, aiAgentWorkflowNames.size());
+        assertFalse(StringUtils.contains(aiAgentWorkflowNames.get(0), AI_AGENT_RAW));
+        assertFalse(StringUtils.contains(aiAgentWorkflowNames.get(1), AI_AGENT_RAW));
+        verify(workflowSessionCache, times(1)).isCached();
+        verify(workflowSessionCache, times(1)).set(workflowList);
+        verifyNoMoreInteractions(workflowSessionCache);
+        verify(workflowRepository, times(1)).findAll();
+        verifyNoMoreInteractions(workflowRepository);
     }
 
     @Test
-    void loadWorkflowJson() {
+    void loadWorkflowJson_cacheHitAndSearchNameHit() throws IOException {
+        String workflow1Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        String workflow2Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
+        String workflow3Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_3);
+        String workflow4Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_4);
+        Workflow workflow1 = WorkflowConverter.fromJsonString(workflow1Json);
+        Workflow workflow2 = WorkflowConverter.fromJsonString(workflow2Json);
+        Workflow workflow3 = WorkflowConverter.fromJsonString(workflow3Json);
+        Workflow workflow4 = WorkflowConverter.fromJsonString(workflow4Json);
+
+        List<Workflow> workflowList = List.of(workflow1, workflow2, workflow3, workflow4);
+
+        when(workflowSessionCache.isCached()).thenReturn(true);
+        when(workflowSessionCache.get()).thenReturn(workflowList);
+
+        String searchedWorkflowResult = workflowService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_3);
+
+        assertEquals(workflow3Json, searchedWorkflowResult, "Workflow Name search was found");
+        verify(workflowSessionCache, times(1)).isCached();
+        verify(workflowSessionCache, times(1)).get();
+        verifyNoMoreInteractions(workflowSessionCache);
+        verifyNoInteractions(workflowRepository);
     }
 
     @Test
-    void toJsonString() {
+    void loadWorkflowJson_noCacheHitSearchNameNoHit() throws IOException {
+        String workflow1Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        String workflow2Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_2);
+        String workflow3Json = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_3);
+        Workflow workflow1 = WorkflowConverter.fromJsonString(workflow1Json);
+        Workflow workflow2 = WorkflowConverter.fromJsonString(workflow2Json);
+        Workflow workflow3 = WorkflowConverter.fromJsonString(workflow3Json);
+
+        List<Workflow> workflowList = List.of(workflow1, workflow2, workflow3);
+
+        when(workflowSessionCache.isCached()).thenReturn(false);
+        when(workflowRepository.findAll()).thenReturn(workflowList);
+        doNothing().when(workflowSessionCache).set(workflowList);
+
+        String searchedWorkflowResult = workflowService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_4);
+
+        assertEquals("", searchedWorkflowResult, "Workflow Name search was not found");
+        assertTrue(logCaptor.getLogs().get(0).contains(
+                "Error finding workflow '" + MINIMAL_WORKFLOW_NAME_4 + "' in available workflows")
+        );
+        verify(workflowSessionCache, times(1)).isCached();
+        verify(workflowSessionCache, times(1)).set(workflowList);
+        verifyNoMoreInteractions(workflowSessionCache);
+        verify(workflowRepository, times(1)).findAll();
+        verifyNoMoreInteractions(workflowRepository);
+    }
+
+    @Test
+    void toJsonString_valid() throws IOException {
+        String workflowJson = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_3);
+        Workflow workflow = WorkflowConverter.fromJsonString(workflowJson);
+        String workflowJsonStringResult = workflowService.toJsonString(workflow);
+        assertEquals(workflowJson, workflowJsonStringResult);
+    }
+
+    @Test
+    void toJsonString_emptyWorkflow() {
+        Workflow emptyWorkflow = new Workflow();
+        String workflowJsonStringResult = workflowService.toJsonString(emptyWorkflow);
+        assertEquals("{}", workflowJsonStringResult, "Empty workflow returns empty json string.");
+        assertTrue(logCaptor.getLogs().get(0).contains("Warning: cannot map empty workflow to json string"));
+    }
+
+    @Test
+    void toJsonString_nullWorkflow() {
+        String workflowJsonStringResult = workflowService.toJsonString(null);
+        assertEquals("{}", workflowJsonStringResult, "Null workflow returns empty json string.");
+        assertTrue(logCaptor.getLogs().get(0).contains("Warning: cannot map empty workflow to json string"));
     }
 }

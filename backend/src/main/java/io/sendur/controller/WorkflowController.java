@@ -62,4 +62,16 @@ public class WorkflowController {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(workflows);
     }
+
+    @PreAuthorize("hasAuthority('OIDC_USER')")
+    @GetMapping("/flush")
+    public ResponseEntity<?> flush(Authentication authentication) {
+        if (authService.isNotAuthorized(authentication)) {
+            return authService.forbiddenResponse();
+        }
+        workflowService.refresh();
+        return ResponseEntity.status(HttpStatus.OK)
+                .lastModified(Instant.now().toEpochMilli())
+                .build();
+    }
 }

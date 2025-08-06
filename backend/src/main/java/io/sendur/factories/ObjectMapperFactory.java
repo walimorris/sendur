@@ -1,5 +1,6 @@
 package io.sendur.factories;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.*;
@@ -31,6 +32,8 @@ public class ObjectMapperFactory {
             }
         });
         mapper.registerModule(module);
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        mapper.enable(SerializationFeature.INDENT_OUTPUT);
         return mapper;
     }
 }

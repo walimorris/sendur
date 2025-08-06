@@ -1,0 +1,46 @@
+{
+  "name": "AI Agent - Minimal Test Workflow 3",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "test-path"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "name": "Test_Node_0"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems"
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [200, 0],
+      "id": "023e4567-e89b-12d3-a456-426614174000",
+      "name": "Respond_Node"
+    }
+  ],
+  "connections": {
+    "Test_Node_0": {
+      "main": [
+        [
+          {
+            "node": "Respond_Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond_Node": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "id": "PmkuvLzHctXRBhXx"
+}

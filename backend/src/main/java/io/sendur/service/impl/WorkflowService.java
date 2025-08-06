@@ -1,10 +1,12 @@
 package io.sendur.service.impl;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.sendur.component.cache.WorkflowSessionCache;
 import io.sendur.domain.workflow.Workflow;
 import io.sendur.repository.WorkflowRepository;
+import io.sendur.utils.ReflectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -21,7 +23,7 @@ public class WorkflowService {
     private final WorkflowRepository workflowRepository;
     private final WorkflowSessionCache workflowSessionCache;
 
-    private static final String AI_AGENT_RAW = "AI Agent - ";
+    public static final String AI_AGENT_RAW = "AI Agent - ";
 
     @Autowired
     public WorkflowService(final WorkflowRepository workflowRepository, WorkflowSessionCache workflowSessionCache) {
@@ -130,7 +132,7 @@ public class WorkflowService {
             }
         }
         if (ObjectUtils.isEmpty(searchedWorkflow)) {
-            LOGGER.warn("Error finding workflow {} in available workflows", workFlowName);
+            LOGGER.warn("Error finding workflow '{}' in available workflows", workFlowName);
             return StringUtils.EMPTY;
         }
         return toJsonString(searchedWorkflow);
@@ -143,22 +145,24 @@ public class WorkflowService {
      *
      * @param workflow {@link Workflow}
      *
-     * @return {@link String} workflow json string
+     * @return {@link String} workflow json string or empty json '{}'
      */
     public String toJsonString(Workflow workflow) {
-        if (ObjectUtils.isNotEmpty(workflow)) {
-            ObjectMapper objectMapper = new ObjectMapper();
-            String workflowJson = StringUtils.EMPTY;
-            try {
-                workflowJson = objectMapper.writeValueAsString(workflow);
-                return workflowJson;
-            } catch (JsonProcessingException e) {
-                LOGGER.error("Error writing workflow '{}' as json string: {}",
-                        workflow.getName(), e.getMessage());
-            }
-            return workflowJson;
+        if (workflow == null || ReflectionUtils.isAllFieldsNull(workflow)) {
+            LOGGER.warn("Warning: cannot map empty workflow to json string");
+            return StringUtils.defaultString("{}");
         }
-        LOGGER.warn("Warning: cannot map empty workflow '{}' to json string", workflow.getName());
-        return StringUtils.EMPTY;
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        String workflowJson = StringUtils.defaultString("{}");
+        try {
+            workflowJson = objectMapper.writerWithDefaultPrettyPrinter()
+                    .writeValueAsString(workflow);
+            return workflowJson;
+        } catch (JsonProcessingException e) {
+            LOGGER.error("Error writing workflow '{}' as json string: {}",
+                    workflow.getName(), e.getMessage());
+        }
+        return workflowJson;
     }
 }

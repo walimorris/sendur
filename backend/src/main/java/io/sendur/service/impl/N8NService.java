@@ -170,7 +170,7 @@ public class N8NService {
         }
         try {
             final String workflowJson = workflowService.loadWorkflowJson(workflowName);
-            if (!StringUtils.isEmpty(workflowJson)) {
+            if (StringUtils.isNotEmpty(workflowJson) && !workflowJson.trim().contains("{}")) {
                 return WorkflowConverter.fromJsonString(workflowJson);
             }
             return null;

@@ -12,7 +12,7 @@ public class PromptUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(PromptUtils.class);
 
     private PromptUtils() {
-        // util can not be constructed
+        // util can not be instantiated
     }
 
     /**
@@ -115,7 +115,8 @@ public class PromptUtils {
      * category property, given the passed {@link ModerationResult}.
      *
      * @param moderationResult
-     * @return
+     *
+     * @return {@link Map}
      */
     private static Map<String, Boolean> getModerationCategories(ModerationResult moderationResult) {
         List<Field> categoriesFields = getSpringAiCategoriesFields(); // get all category class fields

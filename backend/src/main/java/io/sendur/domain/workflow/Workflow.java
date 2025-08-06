@@ -46,7 +46,7 @@ public class Workflow {
     private List<Map<String, Object>> nodes;
     private Map<String, Object> pinData;
     private Map<String, Object> connections;
-    private boolean active;
+    private Boolean active;
     private Map<String, Object> settings;
     private UUID versionId;
     private Map<String, Object> meta;

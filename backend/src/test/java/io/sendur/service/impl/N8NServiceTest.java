@@ -110,7 +110,7 @@ class N8NServiceTest {
 
     @Test
     void getWorkflowNodeFromNameAndNodeId() {
-        String minimalWorkflowJson = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_0);
+        String minimalWorkflowJson = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_0);
         when(workflowService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_0)).thenReturn(minimalWorkflowJson);
         Map<String, Object> minimalWorkflowNode = n8NService.getWorkflowNodeFromNameAndNodeId(MINIMAL_WORKFLOW_NAME_0, MINIMAL_WORKFLOW_NODE_0_UUID);
         String nodeName = (String) minimalWorkflowNode.getOrDefault("name", "");
@@ -135,8 +135,8 @@ class N8NServiceTest {
     @Test
     void getWorkFlowNodeFromNodeId() {
         List<String> workflowNames = List.of(MINIMAL_WORKFLOW_NAME_0, MINIMAL_WORKFLOW_NAME_1);
-        String minimalWorkflowJson0 = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_0);
-        String minimalWorkflowJson1 = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        String minimalWorkflowJson0 = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_0);
+        String minimalWorkflowJson1 = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
 
         when(workflowService.getAllWorkFlowNames()).thenReturn(workflowNames);
         when(workflowService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_0)).thenReturn(minimalWorkflowJson0);
@@ -162,8 +162,8 @@ class N8NServiceTest {
     @Test
     void getWorkflowNodeFromNodeIdUnknownUUID() {
         List<String> workflowNames = List.of(MINIMAL_WORKFLOW_NAME_0, MINIMAL_WORKFLOW_NAME_1);
-        String minimalWorkflowJson0 = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_0);
-        String minimalWorkflowJson1 = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        String minimalWorkflowJson0 = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_0);
+        String minimalWorkflowJson1 = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
 
         when(workflowService.getAllWorkFlowNames()).thenReturn(workflowNames);
         when(workflowService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_0)).thenReturn(minimalWorkflowJson0);
@@ -177,7 +177,7 @@ class N8NServiceTest {
 
     @Test
     void getLlmPromptsFromWorkflow() {
-        String aiWorkflowJson = TestUtils.getStringContentFromResource(AI_WORKFLOW_RESOURCE_0);
+        String aiWorkflowJson = TestUtils.getJsonStringContentFromResource(AI_WORKFLOW_RESOURCE_0);
         when(workflowService.loadWorkflowJson(AI_WORKFLOW_NODE_NAME)).thenReturn(aiWorkflowJson);
         Map<String, String> prompts = n8NService.getLlmPromptsFromWorkflow(AI_WORKFLOW_NODE_NAME);
 
@@ -194,7 +194,7 @@ class N8NServiceTest {
 
     @Test
     void getLlmPromptFromWorkflowNoLlmNodes() {
-        String workflowJson = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        String workflowJson = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
         when(workflowService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_1)).thenReturn(workflowJson);
         Map<String, String> prompts1 = n8NService.getLlmPromptsFromWorkflow(MINIMAL_WORKFLOW_NAME_1);
         Map<String, String> prompts2 = n8NService.getLlmPromptsFromWorkflow(StringUtils.EMPTY);
@@ -205,7 +205,7 @@ class N8NServiceTest {
 
     @Test
     void removeWorkflowNode() throws IOException {
-        String workflowJson = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        String workflowJson = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
         Workflow workflow = WorkflowConverter.fromJsonString(workflowJson);
         boolean wasRemoved1 = n8NService.removeWorkflowNode(workflow, MINIMAL_WORKFLOW_NODE_1_UUID);
         boolean wasRemoved2 = n8NService.removeWorkflowNode(workflow, UNKNOWN_WORKFLOW_NODE_UUID);
@@ -219,7 +219,7 @@ class N8NServiceTest {
 
     @Test
     void loadWorkflow() throws IOException {
-        String workflowJson1 = TestUtils.getStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
+        String workflowJson1 = TestUtils.getJsonStringContentFromResource(MINIMAL_WORKFLOW_RESOURCE_1);
         Workflow expectedWorkflow1 = WorkflowConverter.fromJsonString(workflowJson1);
         String expectedWorkflowId1 = expectedWorkflow1.getWorkflowId();
         when(workflowService.loadWorkflowJson(MINIMAL_WORKFLOW_NAME_1)).thenReturn(workflowJson1);
@@ -266,8 +266,4 @@ class N8NServiceTest {
 //            assertTrue("Name contains correct prefix.", StringUtils.containsIgnoreCase(name, "AI_Agent"));
 //        });
 //    }
-
-    @Test
-    void saveWorkflow() {
-    }
 }

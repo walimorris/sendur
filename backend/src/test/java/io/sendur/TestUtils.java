@@ -1,6 +1,7 @@
 package io.sendur;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.sendur.factories.ObjectMapperFactory;
 import org.apache.commons.lang3.ObjectUtils;
@@ -9,6 +10,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 /**
  * {@code TestUtils} provides a set of convenient utility methods to process various test cases.
@@ -59,7 +61,30 @@ public class TestUtils {
      *
      * @return {@link String} content
      */
-    public static String getStringContentFromResource(String resourcePath) {
+    public static String getJsonStringContentFromResource(String resourcePath) {
+        try (InputStream inputStream = getResourceInputStream(resourcePath)) {
+            if (ObjectUtils.isEmpty(inputStream)) {
+                throw new IllegalArgumentException("InputStream is null, check resource is not empty: " + resourcePath);
+            }
+            String contentJson = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+            JsonNode contentTree = objectMapper.readTree(contentJson);
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(contentTree);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read json string: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Gets the raw content from the given resource as a string. This utility is helpful for common {@code Sendur}
+     * utilities that read in resources, but can not be used in the test context. Instead, the common goal of
+     * receiving string content from a resource can be fulfilled with this method. This method does not discriminate
+     * content, invalid and ill-formatted content will be parsed as is.
+     *
+     * @param resourcePath resource path (coming from test resource directory)
+     *
+     * @return {@link String} content
+     */
+    public static String getRawStringContentFromResource(String resourcePath) {
         InputStream inputStream = getResourceInputStream(resourcePath);
         if (ObjectUtils.isEmpty(inputStream)) {
             throw new IllegalArgumentException("InputStream is null, check resource is not empty: " + resourcePath);
@@ -72,7 +97,7 @@ public class TestUtils {
                 jsonBuilder.append(line);
             }
         } catch (IOException e) {
-            throw new RuntimeException("Failed to read json string: " + e.getMessage());
+            throw new RuntimeException("Failed to read string: " + e.getMessage());
         }
         return jsonBuilder.toString();
     }
