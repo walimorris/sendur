@@ -11,7 +11,6 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -43,7 +42,6 @@ public class LeadsController {
     private static final String CLIENT_ID = "client_id";
     private static final String UNAUTHORIZED_ACCESS = "UnAuthorized Access";
 
-    @Autowired
     public LeadsController(final LeadService leadService, final N8NService n8NService, final AuthService authService) {
         this.leadService = leadService;
         this.n8NService = n8NService;

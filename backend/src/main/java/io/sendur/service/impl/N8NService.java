@@ -10,7 +10,6 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -27,7 +26,6 @@ public class N8NService {
     private final LeadRepository leadRepository;
     private final WorkflowService workflowService;
 
-    @Autowired
     public N8NService(final N8NGatewayService n8nGatewayService,
                       final LeadRepository leadRepository,
                       final WorkflowService workflowService) {

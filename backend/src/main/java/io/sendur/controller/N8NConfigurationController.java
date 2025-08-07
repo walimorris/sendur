@@ -8,7 +8,6 @@ import io.sendur.service.impl.AiGuardRailsService;
 import io.sendur.service.impl.N8NService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -30,7 +29,6 @@ public class N8NConfigurationController {
     private final AuthService authService;
     private final AiGuardRailsService aiGuardRailsService;
 
-    @Autowired
     public N8NConfigurationController(final AuthService authservice, final N8NService n8nService, AiGuardRailsService aiGuardRailsService) {
         this.n8nService = n8nService;
         this.authService = authservice;

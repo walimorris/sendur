@@ -5,7 +5,6 @@ import io.sendur.domain.lead.LeadRequest;
 import io.sendur.repository.LeadRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -21,7 +20,6 @@ public class LeadService {
 
     private final LeadRepository leadRepository;
 
-    @Autowired
     public LeadService(final LeadRepository leadRepository) {
         this.leadRepository = leadRepository;
     }

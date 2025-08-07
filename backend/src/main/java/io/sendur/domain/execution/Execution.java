@@ -40,5 +40,8 @@ public class Execution {
     private Instant stoppedAt;
     private String workflowId;
     private Instant waitTill;
+    private String status;
+    private Instant createdAt;
+    private Instant deletedAt;
     private Map<String, Object> customData;
 }

@@ -12,6 +12,7 @@ import io.sendur.domain.lead.Lead;
 import io.sendur.domain.lead.WebhookMessageId;
 import io.sendur.repository.LeadRepository;
 import io.sendur.service.AIAgentPlatformGateway;
+import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -28,7 +29,6 @@ import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
@@ -60,7 +60,6 @@ public class N8NGatewayService implements AIAgentPlatformGateway {
 
     private final ObjectMapper objectMapper;
 
-    @Autowired
     public N8NGatewayService(N8NConfigurationProperties n8NConfigurationProperties, ObjectMapper objectMapper) {
         this.n8NConfigurationProperties = n8NConfigurationProperties;
         this.objectMapper = objectMapper;
@@ -112,6 +111,30 @@ public class N8NGatewayService implements AIAgentPlatformGateway {
     @Override
     public ExecutionsResult retrieveExecutionsByWorkflowId(String workflowId) {
         String executionsEndpoint = n8NConfigurationProperties.getExecutionsEndpoint();
+        executionsEndpoint = String.format("%s?workflowId=%s", executionsEndpoint, workflowId);
+        return callExecutionsEndpoint(executionsEndpoint, true);
+    }
+
+    @Override
+    public ExecutionsResult retrieveExecutionByExecutionId(String executionId) {
+        String executionsEndpoint = n8NConfigurationProperties.getExecutionsEndpoint();
+        executionsEndpoint = String.format("%s/%s?includeData=false", executionsEndpoint, executionId);
+        return callExecutionsEndpoint(executionsEndpoint, false);
+    }
+
+    @Override
+    public ExecutionsResult retrieveExecutionsByExecutionsIds(String... executionIds) {
+        return null;
+    }
+
+    @Override
+    public ExecutionsResult retrieveAllExecutions() {
+        String executionsEndpoint = n8NConfigurationProperties.getExecutionsEndpoint();
+        executionsEndpoint = String.format("%s?limit=20&includeData=false", executionsEndpoint);
+        return callExecutionsEndpoint(executionsEndpoint, true);
+    }
+
+    private ExecutionsResult callExecutionsEndpoint(String executionsEndpoint, boolean isMultiple) {
         String n8nApiKey = n8NConfigurationProperties.getApiKey();
         Duration timeout = Duration.ofMillis(n8NConfigurationProperties.getTimeout());
         if (StringUtils.isAnyEmpty(executionsEndpoint, n8nApiKey)) {
@@ -137,29 +160,46 @@ public class N8NGatewayService implements AIAgentPlatformGateway {
             if (StringUtils.isEmpty(body)) {
                 return new ExecutionsResult(status, new ArrayList<>(), Optional.of("No Executions Available."));
             }
-            Executions executions = objectMapper.readValue(body, new TypeReference<>() {});
-            List<Execution> executionResultList = searchExecutionsByWorkflowId(executions, workflowId);
-            return new ExecutionsResult(status, executionResultList, Optional.empty());
+            // returns a list of executions by workflowId
+            if (isMultiple) {
+                HttpUrl baseHttpUrl = HttpUrl.parse(executionsEndpoint);
+                Executions executions = objectMapper.readValue(body, new TypeReference<>() {});
+                List<Execution> allExecutions = new ArrayList<>(executions.getExecutions());
+                String nextCursor = executions.getNextCursor();
+
+                // continue to call pages while cursor is available
+                while (StringUtils.isNotEmpty(nextCursor)) {
+                    if (ObjectUtils.isNotEmpty(baseHttpUrl)) {
+                        HttpUrl pagedExecutionUrl = baseHttpUrl.newBuilder()
+                                .setQueryParameter("cursor", nextCursor)
+                                .build();
+                        Request anotherRequest = basicRequest(pagedExecutionUrl.toString(), n8nApiKey);
+                        try (Response anotherResponse = client.newCall(anotherRequest).execute()) {
+                            String anotherBody = anotherResponse.body().string();
+                            boolean anotherSuccessfulResponse = anotherResponse.isSuccessful();
+                            boolean anotherValidBody = StringUtils.isNotEmpty(anotherBody);
+                            if (!anotherSuccessfulResponse || !anotherValidBody) {
+                                break;
+                            }
+                            Executions moreExecutions = objectMapper.readValue(anotherBody, new TypeReference<>(){});
+                            allExecutions.addAll(moreExecutions.getExecutions());
+                            nextCursor = moreExecutions.getNextCursor();
+                        }
+                    }
+                }
+                // returns the original status - if a cursor is returned but some error occurs
+                // in subsequent requests then the response returns what it has as a successful
+                // response
+                return new ExecutionsResult(status, allExecutions, Optional.empty());
+            }
+            // instead returns single execution
+            Execution execution = objectMapper.readValue(body, new TypeReference<>(){});
+            return new ExecutionsResult(status, List.of(execution), Optional.empty());
         } catch (IOException e) {
-            String msg = String.format("Failed to get executions from endpoint %s: %s", executionsEndpoint, e.getMessage());
-            LOGGER.error(msg, e);
+            String msg = String.format("Failed to get executions from endpoint %s ", executionsEndpoint);
+            LOGGER.error("{}: {}", msg, e.getMessage());
             return new ExecutionsResult(500, new ArrayList<>(), Optional.of(msg));
         }
-    }
-
-    @Override
-    public ExecutionsResult retrieveAllExecutions() {
-        return new ExecutionsResult(-1, new ArrayList<>(), Optional.of("msg"));
-    }
-
-    @Override
-    public ExecutionsResult retrieveExecutionByExecutionId(String executionId) {
-        return new ExecutionsResult(-1, new ArrayList<>(), Optional.of("msg"));
-    }
-
-    @Override
-    public ExecutionsResult retrieveExecutionsByExecutionsIds(String... executionIds) {
-        return new ExecutionsResult(-1, new ArrayList<>(), Optional.of("msg"));
     }
 
     private OkHttpClient okHttpClient(Duration timeout) {
@@ -227,24 +267,6 @@ public class N8NGatewayService implements AIAgentPlatformGateway {
             LOGGER.error("Failed to send POST request to N8N webhook {}: {}", webhook, e.getMessage());
         }
         return new BasicClassicHttpResponse(500, SERVER_ERROR);
-    }
-
-    /**
-     * Search and return all executions with the given workflowId.
-     *
-     * @param executions {@link Executions}
-     * @param workflowId {@link String} workflowsId
-     *
-     * @return {@link List<Execution>} List of Executions with workflowId
-     */
-    private List<Execution> searchExecutionsByWorkflowId(Executions executions, String workflowId) {
-        List<Execution> foundExecutions = new ArrayList<>();
-        for (Execution execution : executions.getExecutions()) {
-            if (StringUtils.compare(execution.getWorkflowId(), workflowId, false) == 0) {
-                foundExecutions.add(execution);
-            }
-        }
-        return foundExecutions;
     }
 
     /**
