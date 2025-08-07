@@ -29,6 +29,16 @@ public class N8NConfigurationProperties {
     private String approvedEmailsWebhook;
 
     /**
+     * The n8n instance execution api endpoint.
+     */
+    private String executionsEndpoint;
+
+    /**
+     * API key for n8n programmatic access.
+     */
+    private String apiKey;
+
+    /**
      * API key for send grid.
      */
     private String sendGridApiKey;

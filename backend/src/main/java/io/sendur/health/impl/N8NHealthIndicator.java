@@ -27,7 +27,7 @@ public class N8NHealthIndicator implements BaseHealthIndicator {
 
         final String host = n8NConfigurationProperties.getHost();
         final String port = n8NConfigurationProperties.getHost();
-        if (n8NGatewayService.n8nSocketAccepting()) {
+        if (n8NGatewayService.agentSocketAccepting()) {
             return Health.up()
                     .withDetail("Host", host)
                     .withDetail("Port", port)

@@ -4,19 +4,25 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.sendur.configuration.N8NConfigurationProperties;
+import io.sendur.domain.execution.Execution;
+import io.sendur.domain.execution.Executions;
+import io.sendur.domain.execution.ExecutionsResult;
 import io.sendur.domain.lead.ApprovedLeadsWebhookResult;
 import io.sendur.domain.lead.Lead;
 import io.sendur.domain.lead.WebhookMessageId;
 import io.sendur.repository.LeadRepository;
-import io.sendur.service.N8NGateway;
+import io.sendur.service.AIAgentPlatformGateway;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.brotli.BrotliInterceptor;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
-import org.apache.hc.core5.http.ClassicHttpResponse;
-import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.*;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
@@ -32,30 +38,36 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 @Service
-public class N8NGatewayService implements N8NGateway {
+public class N8NGatewayService implements AIAgentPlatformGateway {
     private static final Logger LOGGER = LoggerFactory.getLogger(N8NGatewayService.class);
 
     private final N8NConfigurationProperties n8NConfigurationProperties;
 
+    private static final String ACCEPT = "Accept";
     private static final String CONTENT_TYPE = "Content-Type";
     private static final String USER_AGENT = "User-Agent";
+    private static final String N8N_API_KEY_HEADER = "X-N8N-API-KEY";
     private static final String APPLICATION_JSON = "application/json";
-    private static final String TEXT_PLAIN = "text/plain";
     private static final String SERVER_ERROR = "Internal Server Error";
     private static final String APP_NAME = "Sendur";
 
+    private final ObjectMapper objectMapper;
+
     @Autowired
-    public N8NGatewayService(N8NConfigurationProperties n8NConfigurationProperties) {
+    public N8NGatewayService(N8NConfigurationProperties n8NConfigurationProperties, ObjectMapper objectMapper) {
         this.n8NConfigurationProperties = n8NConfigurationProperties;
+        this.objectMapper = objectMapper;
     }
 
     @Override
-    public boolean n8nSocketAccepting() throws IllegalStateException {
+    public boolean agentSocketAccepting() throws IllegalStateException {
         final String host = n8NConfigurationProperties.getHost();
         final int port = n8NConfigurationProperties.getPort();
         try (Socket socket = new Socket()) {
@@ -72,29 +84,6 @@ public class N8NGatewayService implements N8NGateway {
             LOGGER.error("Can't connect to {}:{}: {}", host, port, e.getMessage());
         }
         return false;
-    }
-
-    @Override
-    public ClassicHttpResponse postN8NWebhook(String webhook, long timeout, Object object) throws JsonProcessingException {
-        String json = new ObjectMapper().writeValueAsString(object);
-        RequestConfig config = RequestConfig.custom()
-                .setResponseTimeout(timeout, TimeUnit.MILLISECONDS)
-                .build();
-        try (CloseableHttpClient client = HttpClients.custom()
-                .setDefaultRequestConfig(config)
-                .build()) {
-            HttpPost post = new HttpPost(webhook);
-            post.setHeader(CONTENT_TYPE, APPLICATION_JSON);
-            post.setHeader(USER_AGENT, APP_NAME);
-            post.setEntity(new StringEntity(json));
-
-            if (n8nSocketAccepting()) {
-                return client.execute(post);
-            }
-        } catch (IOException | IllegalStateException e) {
-            LOGGER.error("Failed to send POST request to N8N webhook {}: {}", webhook, e.getMessage());
-        }
-        return new BasicClassicHttpResponse(500, SERVER_ERROR);
     }
 
     @Override
@@ -120,6 +109,77 @@ public class N8NGatewayService implements N8NGateway {
         }
     }
 
+    @Override
+    public ExecutionsResult retrieveExecutionsByWorkflowId(String workflowId) {
+        String executionsEndpoint = n8NConfigurationProperties.getExecutionsEndpoint();
+        String n8nApiKey = n8NConfigurationProperties.getApiKey();
+        Duration timeout = Duration.ofMillis(n8NConfigurationProperties.getTimeout());
+        if (StringUtils.isAnyEmpty(executionsEndpoint, n8nApiKey)) {
+            String msg = String.format("Failed to hit executions endpoint %s. Either ensure n8n server is running or review API-KEY.", executionsEndpoint);
+            LOGGER.error(msg);
+            return new ExecutionsResult(500, null, Optional.of(msg));
+        }
+        OkHttpClient client = okHttpClient(timeout);
+        Request request = basicRequest(executionsEndpoint, n8nApiKey);
+        if (!agentSocketAccepting()) {
+            String msg = "n8n socket not accepting connections.";
+            LOGGER.warn(msg);
+            return new ExecutionsResult(503, new ArrayList<>(), Optional.of(msg));
+        }
+        try (Response response = client.newCall(request).execute()) {
+            int status = response.code();
+            if (!response.isSuccessful()) {
+                String responseBody = response.body().string();
+                String errorBody = StringUtils.isNotEmpty(responseBody) ? responseBody : "Unknown error";
+                return new ExecutionsResult(status, new ArrayList<>(), Optional.of(errorBody));
+            }
+            String body = response.body().string();
+            if (StringUtils.isEmpty(body)) {
+                return new ExecutionsResult(status, new ArrayList<>(), Optional.of("No Executions Available."));
+            }
+            Executions executions = objectMapper.readValue(body, new TypeReference<>() {});
+            List<Execution> executionResultList = searchExecutionsByWorkflowId(executions, workflowId);
+            return new ExecutionsResult(status, executionResultList, Optional.empty());
+        } catch (IOException e) {
+            String msg = String.format("Failed to get executions from endpoint %s: %s", executionsEndpoint, e.getMessage());
+            LOGGER.error(msg, e);
+            return new ExecutionsResult(500, new ArrayList<>(), Optional.of(msg));
+        }
+    }
+
+    @Override
+    public ExecutionsResult retrieveAllExecutions() {
+        return new ExecutionsResult(-1, new ArrayList<>(), Optional.of("msg"));
+    }
+
+    @Override
+    public ExecutionsResult retrieveExecutionByExecutionId(String executionId) {
+        return new ExecutionsResult(-1, new ArrayList<>(), Optional.of("msg"));
+    }
+
+    @Override
+    public ExecutionsResult retrieveExecutionsByExecutionsIds(String... executionIds) {
+        return new ExecutionsResult(-1, new ArrayList<>(), Optional.of("msg"));
+    }
+
+    private OkHttpClient okHttpClient(Duration timeout) {
+        return new OkHttpClient.Builder()
+                .addInterceptor(BrotliInterceptor.INSTANCE)
+                .callTimeout(timeout)
+                .connectTimeout(timeout)
+                .readTimeout(timeout)
+                .build();
+    }
+
+    private Request basicRequest(String executionEndpoint, String key) {
+        return new Request.Builder()
+                .url(executionEndpoint)
+                .header(ACCEPT, APPLICATION_JSON)
+                .header(N8N_API_KEY_HEADER, key)
+                .header(USER_AGENT, APP_NAME)
+                .build();
+    }
+
     /**
      * Sends {@linkplain Lead leads} to n8n approved email webhook.
      *
@@ -132,6 +192,59 @@ public class N8NGatewayService implements N8NGateway {
     private ClassicHttpResponse hitN8NApprovedEmailWebhook(List<Lead> leads) throws JsonProcessingException {
         return postN8NWebhook(n8NConfigurationProperties.getApprovedEmailsWebhook(),
                 n8NConfigurationProperties.getTimeout(), leads);
+    }
+
+    /**
+     * Sends a {@linkplain HttpPost POST request} to the given n8n webhook.
+     *
+     * @param webhook n8n webhook target
+     * @param timeout request timeout
+     * @param object request body
+     *
+     * @return {@linkplain ClassicHttpResponse HttpResponse}
+     *
+     * @throws JsonProcessingException request body is malformed
+     *
+     * TODO: Use OKHTTP
+     */
+    private ClassicHttpResponse postN8NWebhook(String webhook, long timeout, Object object) throws JsonProcessingException {
+        String json = new ObjectMapper().writeValueAsString(object);
+        RequestConfig config = RequestConfig.custom()
+                .setResponseTimeout(timeout, TimeUnit.MILLISECONDS)
+                .build();
+        try (CloseableHttpClient client = HttpClients.custom()
+                .setDefaultRequestConfig(config)
+                .build()) {
+            HttpPost post = new HttpPost(webhook);
+            post.setHeader(CONTENT_TYPE, APPLICATION_JSON);
+            post.setHeader(USER_AGENT, APP_NAME);
+            post.setEntity(new StringEntity(json));
+
+            if (agentSocketAccepting()) {
+                return client.execute(post);
+            }
+        } catch (IOException | IllegalStateException e) {
+            LOGGER.error("Failed to send POST request to N8N webhook {}: {}", webhook, e.getMessage());
+        }
+        return new BasicClassicHttpResponse(500, SERVER_ERROR);
+    }
+
+    /**
+     * Search and return all executions with the given workflowId.
+     *
+     * @param executions {@link Executions}
+     * @param workflowId {@link String} workflowsId
+     *
+     * @return {@link List<Execution>} List of Executions with workflowId
+     */
+    private List<Execution> searchExecutionsByWorkflowId(Executions executions, String workflowId) {
+        List<Execution> foundExecutions = new ArrayList<>();
+        for (Execution execution : executions.getExecutions()) {
+            if (StringUtils.compare(execution.getWorkflowId(), workflowId, false) == 0) {
+                foundExecutions.add(execution);
+            }
+        }
+        return foundExecutions;
     }
 
     /**
