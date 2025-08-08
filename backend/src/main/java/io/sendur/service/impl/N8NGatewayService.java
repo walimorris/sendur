@@ -58,6 +58,13 @@ public class N8NGatewayService implements AIAgentPlatformGateway {
     private static final String SERVER_ERROR = "Internal Server Error";
     private static final String APP_NAME = "Sendur";
 
+    private static final String EXECUTIONS_ENDPOINT_FAILURE_MSG_1 = "Failed to get executions from endpoint";
+    private static final String EXECUTIONS_ENDPOINT_FAILURE_MSG_2 = "Failed to hit executions endpoint. Ensure" +
+            " n8n server is running or review api-key.";
+    private static final String NO_EXECUTIONS = "No Executions Available.";
+    private static final String UNKNOWN_ERROR = "Unknown error";
+    private static final String SOCKET_NOT_ACCEPTING_MSG = "n8n socket not accepting connections";
+
     private final ObjectMapper objectMapper;
 
     public N8NGatewayService(N8NConfigurationProperties n8NConfigurationProperties, ObjectMapper objectMapper) {
@@ -134,67 +141,87 @@ public class N8NGatewayService implements AIAgentPlatformGateway {
         return callExecutionsEndpoint(executionsEndpoint, true);
     }
 
-    private ExecutionsResult callExecutionsEndpoint(String executionsEndpoint, boolean isMultiple) {
+    protected ExecutionsResult callExecutionsEndpoint(String executionsEndpoint, boolean isMultiple) {
         String n8nApiKey = n8NConfigurationProperties.getApiKey();
         Duration timeout = Duration.ofMillis(n8NConfigurationProperties.getTimeout());
         if (StringUtils.isAnyEmpty(executionsEndpoint, n8nApiKey)) {
-            String msg = String.format("Failed to hit executions endpoint %s. Either ensure n8n server is running or review API-KEY.", executionsEndpoint);
-            LOGGER.error(msg);
-            return new ExecutionsResult(500, null, Optional.of(msg));
+            return failedExecutionsRequest(executionsEndpoint, EXECUTIONS_ENDPOINT_FAILURE_MSG_2);
         }
         OkHttpClient client = okHttpClient(timeout);
         Request request = basicRequest(executionsEndpoint, n8nApiKey);
         if (!agentSocketAccepting()) {
-            String msg = "n8n socket not accepting connections.";
-            LOGGER.warn(msg);
-            return new ExecutionsResult(503, new ArrayList<>(), Optional.of(msg));
+            return socketNotAcceptingExecutionsResult();
         }
         try (Response response = client.newCall(request).execute()) {
             int status = response.code();
             if (!response.isSuccessful()) {
-                String responseBody = response.body().string();
-                String errorBody = StringUtils.isNotEmpty(responseBody) ? responseBody : "Unknown error";
-                return new ExecutionsResult(status, new ArrayList<>(), Optional.of(errorBody));
+                return responseNotSuccessfulExecutionsResult(response, status);
             }
             String body = response.body().string();
             if (StringUtils.isEmpty(body)) {
-                return new ExecutionsResult(status, new ArrayList<>(), Optional.of("No Executions Available."));
+                return new ExecutionsResult(status, new ArrayList<>(), Optional.of(NO_EXECUTIONS));
             }
-            // returns a list of executions by workflowId
             if (isMultiple) {
-                HttpUrl baseHttpUrl = HttpUrl.parse(executionsEndpoint);
-                Executions executions = objectMapper.readValue(body, new TypeReference<>() {});
-                List<Execution> allExecutions = new ArrayList<>(executions.getExecutions());
-                String nextCursor = executions.getNextCursor();
-
-                // continue to call pages while cursor is available
-                while (StringUtils.isNotEmpty(nextCursor)) {
-                    if (ObjectUtils.isNotEmpty(baseHttpUrl)) {
-                        HttpUrl pagedExecutionUrl = baseHttpUrl.newBuilder()
-                                .setQueryParameter("cursor", nextCursor)
-                                .build();
-                        Request anotherRequest = basicRequest(pagedExecutionUrl.toString(), n8nApiKey);
-                        try (Response anotherResponse = client.newCall(anotherRequest).execute()) {
-                            String anotherBody = anotherResponse.body().string();
-                            boolean anotherSuccessfulResponse = anotherResponse.isSuccessful();
-                            boolean anotherValidBody = StringUtils.isNotEmpty(anotherBody);
-                            if (!anotherSuccessfulResponse || !anotherValidBody) {
-                                break;
-                            }
-                            Executions moreExecutions = objectMapper.readValue(anotherBody, new TypeReference<>(){});
-                            allExecutions.addAll(moreExecutions.getExecutions());
-                            nextCursor = moreExecutions.getNextCursor();
-                        }
-                    }
-                }
-                // returns the original status - if a cursor is returned but some error occurs
-                // in subsequent requests then the response returns what it has as a successful
-                // response
-                return new ExecutionsResult(status, allExecutions, Optional.empty());
+                return executeMultipleCursorRequests(client, executionsEndpoint, body, status, n8nApiKey);
             }
-            // instead returns single execution
             Execution execution = objectMapper.readValue(body, new TypeReference<>(){});
             return new ExecutionsResult(status, List.of(execution), Optional.empty());
+        } catch (IOException e) {
+            return failedExecutionsRequest(executionsEndpoint, EXECUTIONS_ENDPOINT_FAILURE_MSG_1, e);
+        }
+    }
+
+    /**
+     * The n8n API responds with a {@code cursor} value. This can be seen in {@link Executions#getNextCursor()}.
+     * If a cursor value is available, another request to the {@code executionsEndpoint} is created by updating
+     * this cursor value and calling the next set of execution results. Executions are appended to a results list.
+     * This multi-cursor request sequence continues until all executions are read. NOTE: If some malformed response
+     * or empty response occurs after the initial successful request and during a subsequent multi cursor request,
+     * the iteration breaks and returns the executions that have been collected. This is response is determined as
+     * successful.
+     *
+     * @param client {@link OkHttpClient}
+     * @param executionsEndpoint {@link String} the executions request endpoint
+     * @param initialBody {@link String} the initial response body
+     * @param initialStatus int - the initial status
+     * @param key {@link String} n8n api key
+     *
+     * @return {@link ExecutionsResult}
+     */
+    protected ExecutionsResult executeMultipleCursorRequests(OkHttpClient client,
+                                                           String executionsEndpoint,
+                                                           String initialBody,
+                                                           int initialStatus, String key) {
+        try {
+            HttpUrl baseHttpUrl = HttpUrl.parse(executionsEndpoint);
+            Executions executions = objectMapper.readValue(initialBody, new TypeReference<>() {});
+            List<Execution> allExecutions = new ArrayList<>(executions.getExecutions());
+            String nextCursor = executions.getNextCursor();
+
+            // continue to call pages while cursor is available
+            while (StringUtils.isNotEmpty(nextCursor)) {
+                if (ObjectUtils.isNotEmpty(baseHttpUrl)) {
+                    HttpUrl pagedExecutionUrl = baseHttpUrl.newBuilder()
+                            .setQueryParameter("cursor", nextCursor)
+                            .build();
+                    Request anotherRequest = basicRequest(pagedExecutionUrl.toString(), key);
+                    try (Response anotherResponse = client.newCall(anotherRequest).execute()) {
+                        String anotherBody = anotherResponse.body().string();
+                        boolean anotherSuccessfulResponse = anotherResponse.isSuccessful();
+                        boolean anotherValidBody = StringUtils.isNotEmpty(anotherBody);
+                        if (!anotherSuccessfulResponse || !anotherValidBody) {
+                            break;
+                        }
+                        Executions moreExecutions = objectMapper.readValue(anotherBody, new TypeReference<>(){});
+                        allExecutions.addAll(moreExecutions.getExecutions());
+                        nextCursor = moreExecutions.getNextCursor();
+                    }
+                }
+            }
+            // returns the initial status - if a cursor is returned but some error occurs
+            // in subsequent requests then the response returns what it has as a successful
+            // response
+            return new ExecutionsResult(initialStatus, allExecutions, Optional.empty());
         } catch (IOException e) {
             String msg = String.format("Failed to get executions from endpoint %s ", executionsEndpoint);
             LOGGER.error("{}: {}", msg, e.getMessage());
@@ -202,6 +229,13 @@ public class N8NGatewayService implements AIAgentPlatformGateway {
         }
     }
 
+    /**
+     * Returns a basic {@code OKHttpClient} with timeout configuration.
+     *
+     * @param timeout {@link Duration} timeout values for: call-timeout,
+     *                                connect-timeout and read-timeout
+     * @return {@link OkHttpClient}
+     */
     private OkHttpClient okHttpClient(Duration timeout) {
         return new OkHttpClient.Builder()
                 .addInterceptor(BrotliInterceptor.INSTANCE)
@@ -211,6 +245,14 @@ public class N8NGatewayService implements AIAgentPlatformGateway {
                 .build();
     }
 
+    /**
+     * Returns a basic n8n executions request.
+     *
+     * @param executionEndpoint {@link String} executions endpoint
+     * @param key {@link String} n8n api key
+     *
+     * @return {@link Request}
+     */
     private Request basicRequest(String executionEndpoint, String key) {
         return new Request.Builder()
                 .url(executionEndpoint)
@@ -247,7 +289,7 @@ public class N8NGatewayService implements AIAgentPlatformGateway {
      *
      * TODO: Use OKHTTP
      */
-    private ClassicHttpResponse postN8NWebhook(String webhook, long timeout, Object object) throws JsonProcessingException {
+    protected ClassicHttpResponse postN8NWebhook(String webhook, long timeout, Object object) throws JsonProcessingException {
         String json = new ObjectMapper().writeValueAsString(object);
         RequestConfig config = RequestConfig.custom()
                 .setResponseTimeout(timeout, TimeUnit.MILLISECONDS)
@@ -290,7 +332,44 @@ public class N8NGatewayService implements AIAgentPlatformGateway {
         }
     }
 
+    /**
+     * Returns input stream for the given content.
+     *
+     * @param content {@link String} resource content
+     *
+     * @return {@link InputStream}
+     */
     private InputStream getInputStreamFromContent(String content) {
         return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private ExecutionsResult socketNotAcceptingExecutionsResult() {
+        LOGGER.warn(SOCKET_NOT_ACCEPTING_MSG);
+        return new ExecutionsResult(503, new ArrayList<>(), Optional.of(SOCKET_NOT_ACCEPTING_MSG));
+    }
+
+    private ExecutionsResult responseNotSuccessfulExecutionsResult(Response response, int status) {
+        String responseBody;
+        try {
+            responseBody = response.body().string();
+        } catch (IOException e) {
+            responseBody = null;
+        }
+        String errorBody = StringUtils.isNotEmpty(responseBody) ? responseBody : UNKNOWN_ERROR;
+        return new ExecutionsResult(status, new ArrayList<>(), Optional.of(errorBody));
+    }
+
+    private ExecutionsResult failedExecutionsRequest(String executionsEndpoint, String msg) {
+        return failedExecutionsRequest(executionsEndpoint, msg, null);
+    }
+
+    private ExecutionsResult failedExecutionsRequest(String executionsEndpoint, String msg, Exception e) {
+        String message = String.format(msg, " %s", executionsEndpoint);
+        if (e != null) {
+            LOGGER.error("{}: {}", message, e.getMessage());
+        } else {
+            LOGGER.error("{}", message);
+        }
+        return new ExecutionsResult(500, new ArrayList<>(), Optional.of(msg));
     }
 }
