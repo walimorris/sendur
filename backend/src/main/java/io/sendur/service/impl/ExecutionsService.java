@@ -6,6 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.Set;
+
 @Service
 public class ExecutionsService {
     private static final Logger LOGGER = LoggerFactory.getLogger(ExecutionsService.class);
@@ -25,6 +27,10 @@ public class ExecutionsService {
 
     public ExecutionsResult getExecutionByExecutionId(String executionId) {
         return n8NGatewayService.retrieveExecutionByExecutionId(executionId);
+    }
+
+    public ExecutionsResult getExecutionsByExecutionIds(Set<String> executionsIds) {
+        return n8NGatewayService.retrieveExecutionsByExecutionsIds(executionsIds);
     }
 
     public ExecutionsResult getAllExecutions() {

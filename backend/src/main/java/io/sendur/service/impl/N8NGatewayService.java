@@ -39,10 +39,10 @@ import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class N8NGatewayService implements AIAgentPlatformGateway {
@@ -130,15 +130,31 @@ public class N8NGatewayService implements AIAgentPlatformGateway {
     }
 
     @Override
-    public ExecutionsResult retrieveExecutionsByExecutionsIds(String... executionIds) {
-        return null;
-    }
-
-    @Override
     public ExecutionsResult retrieveAllExecutions() {
         String executionsEndpoint = n8NConfigurationProperties.getExecutionsEndpoint();
         executionsEndpoint = String.format("%s?limit=20&includeData=false", executionsEndpoint);
         return callExecutionsEndpoint(executionsEndpoint, true);
+    }
+
+    @Override
+    public ExecutionsResult retrieveExecutionsByExecutionsIds(Set<String> executionIds) {
+        ExecutionsResult executionsResult = retrieveAllExecutions();
+        if (executionsResult.statusCode() == 200) {
+            List<Execution> allExecutionsList = executionsResult.executions();
+            if (ObjectUtils.isNotEmpty(allExecutionsList)) {
+                Map<String, Execution> executionMap = allExecutionsList.stream()
+                        .collect(Collectors.toMap(
+                                e -> String.valueOf(e.getExecutionId()),
+                                Function.identity()));
+                List<Execution> filteredExecutions = executionIds.stream()
+                        .map(executionMap::get)
+                        .filter(Objects::nonNull)
+                        .toList();
+                return new ExecutionsResult(executionsResult.statusCode(), filteredExecutions,
+                        executionsResult.message());
+            }
+        }
+        return executionsResult;
     }
 
     protected ExecutionsResult callExecutionsEndpoint(String executionsEndpoint, boolean isMultiple) {

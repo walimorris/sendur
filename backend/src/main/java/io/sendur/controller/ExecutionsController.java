@@ -12,6 +12,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/sender/api/n8n/executions")
@@ -32,14 +33,7 @@ public class ExecutionsController {
         if (authService.isNotAuthorized(authentication)) {
             return authService.forbiddenResponse();
         }
-        ExecutionsResult executionsResult = executionsService.getAllExecutions();
-        if (executionsResult.statusCode() != 200) {
-            return unsuccessfulExecutionResponse(executionsResult);
-        }
-        return ResponseEntity.status(executionsResult.statusCode())
-                .contentType(MediaType.APPLICATION_JSON)
-                .lastModified(Instant.now().toEpochMilli())
-                .body(executionsResult.executions());
+        return executionsResponse(executionsService.getAllExecutions());
     }
 
     @PreAuthorize("hasAuthority('OIDC_USER')")
@@ -48,14 +42,25 @@ public class ExecutionsController {
         if (authService.isNotAuthorized(authentication)) {
             return authService.forbiddenResponse();
         }
-        ExecutionsResult executionsResult = executionsService.getExecutionByExecutionId(executionId);
-        if (executionsResult.statusCode() != 200) {
-            return unsuccessfulExecutionResponse(executionsResult);
+        return executionsResponse(executionsService.getExecutionByExecutionId(executionId));
+    }
+
+    @PreAuthorize("hasAuthority('OIDC_USER')")
+    @GetMapping("/by-executionIds")
+    public ResponseEntity<?> getExecutionsByExecutionIdsMini(@RequestParam Set<String> ids, Authentication authentication) {
+        if (authService.isNotAuthorized(authentication)) {
+            return authService.forbiddenResponse();
         }
-        return ResponseEntity.status(executionsResult.statusCode())
-                .contentType(MediaType.APPLICATION_JSON)
-                .lastModified(Instant.now().toEpochMilli())
-                .body(executionsResult.executions().get(0));
+        return executionsResponse(executionsService.getExecutionsByExecutionIds(ids));
+    }
+
+    @PreAuthorize("hasAuthority('OIDC_USER')")
+    @PostMapping("/filter")
+    public ResponseEntity<?> getExecutionsByExecutionIdsBulk(@RequestParam Set<String> ids, Authentication authentication) {
+        if (authService.isNotAuthorized(authentication)) {
+            return authService.forbiddenResponse();
+        }
+        return executionsResponse(executionsService.getExecutionsByExecutionIds(ids));
     }
 
     @PreAuthorize("hasAuthority('OIDC_USER')")
@@ -64,9 +69,12 @@ public class ExecutionsController {
         if (authService.isNotAuthorized(authentication)) {
             return authService.forbiddenResponse();
         }
-        ExecutionsResult executionsResult = executionsService.getExecutionsByWorkflowId(workflowId);
+        return executionsResponse(executionsService.getExecutionsByWorkflowId(workflowId));
+    }
+
+    protected ResponseEntity<?> executionsResponse(ExecutionsResult executionsResult) {
         if (executionsResult.statusCode() != 200) {
-            return unsuccessfulExecutionResponse(executionsResult);
+            return unsuccessfulExecutionsResponse(executionsResult);
         }
         return ResponseEntity.status(executionsResult.statusCode())
                 .contentType(MediaType.APPLICATION_JSON)
@@ -74,7 +82,7 @@ public class ExecutionsController {
                 .body(executionsResult.executions());
     }
 
-    ResponseEntity<?> unsuccessfulExecutionResponse(ExecutionsResult executionsResult) {
+    protected ResponseEntity<?> unsuccessfulExecutionsResponse(ExecutionsResult executionsResult) {
         return ResponseEntity.status(executionsResult.statusCode())
                 .lastModified(Instant.now().toEpochMilli())
                 .body(executionsResult.message().orElse(""));

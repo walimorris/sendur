@@ -6,6 +6,7 @@ import io.sendur.domain.lead.Lead;
 import io.sendur.repository.LeadRepository;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * {@code AIAgentPlatformGateway} is the Gateway Pattern to provide convenient access and functionality
@@ -47,7 +48,7 @@ public interface AIAgentPlatformGateway {
      *
      * @return {@link ExecutionsResult}
      */
-    ExecutionsResult retrieveExecutionsByExecutionsIds(String... executionIds);
+    ExecutionsResult retrieveExecutionsByExecutionsIds(Set<String> executionIds);
 
     /**
      * Retrieve all executions with the given workflowId.
