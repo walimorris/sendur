@@ -3,6 +3,7 @@ package io.sendur.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.sendur.component.connection.SocketFactory;
 import io.sendur.configuration.N8NConfigurationProperties;
 import io.sendur.domain.execution.Execution;
 import io.sendur.domain.execution.Executions;
@@ -49,6 +50,8 @@ public class N8NGatewayService implements AIAgentPlatformGateway {
     private static final Logger LOGGER = LoggerFactory.getLogger(N8NGatewayService.class);
 
     private final N8NConfigurationProperties n8NConfigurationProperties;
+    private final ObjectMapper objectMapper;
+    private final SocketFactory socketFactory;
 
     private static final String ACCEPT = "Accept";
     private static final String CONTENT_TYPE = "Content-Type";
@@ -65,18 +68,17 @@ public class N8NGatewayService implements AIAgentPlatformGateway {
     private static final String UNKNOWN_ERROR = "Unknown error";
     private static final String SOCKET_NOT_ACCEPTING_MSG = "n8n socket not accepting connections";
 
-    private final ObjectMapper objectMapper;
-
-    public N8NGatewayService(N8NConfigurationProperties n8NConfigurationProperties, ObjectMapper objectMapper) {
+    public N8NGatewayService(N8NConfigurationProperties n8NConfigurationProperties, ObjectMapper objectMapper, SocketFactory socketFactory) {
         this.n8NConfigurationProperties = n8NConfigurationProperties;
         this.objectMapper = objectMapper;
+        this.socketFactory = socketFactory;
     }
 
     @Override
     public boolean agentSocketAccepting() throws IllegalStateException {
         final String host = n8NConfigurationProperties.getHost();
         final int port = n8NConfigurationProperties.getPort();
-        try (Socket socket = new Socket()) {
+        try (Socket socket = socketFactory.create()) {
             SocketAddress address = new InetSocketAddress(host, port);
             socket.connect(address, (int) n8NConfigurationProperties.getTimeout());
             if (socket.isConnected()) {
@@ -287,7 +289,7 @@ public class N8NGatewayService implements AIAgentPlatformGateway {
      *
      * @throws JsonProcessingException leads are malformed
      */
-    private ClassicHttpResponse hitN8NApprovedEmailWebhook(List<Lead> leads) throws JsonProcessingException {
+    protected ClassicHttpResponse hitN8NApprovedEmailWebhook(List<Lead> leads) throws JsonProcessingException {
         return postN8NWebhook(n8NConfigurationProperties.getApprovedEmailsWebhook(),
                 n8NConfigurationProperties.getTimeout(), leads);
     }
@@ -336,7 +338,7 @@ public class N8NGatewayService implements AIAgentPlatformGateway {
      *
      * @return {@link String} entity content or empty string if null
      */
-    private String getEntityContentOrEmpty(HttpEntity entity) {
+    protected String getEntityContentOrEmpty(HttpEntity entity) {
         if (ObjectUtils.isEmpty(entity)) {
             return StringUtils.EMPTY;
         }
